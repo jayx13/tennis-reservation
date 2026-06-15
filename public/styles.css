@@ -1,5 +1,5 @@
 :root {
-  color-scheme: light;
+  color-scheme: dark;
   --ink: #17201c;
   --muted: #66736c;
   --line: #d9e2dc;
@@ -12,6 +12,24 @@
   --shadow: 0 18px 48px rgba(19, 78, 74, 0.14);
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #eef7f2;
+  --muted: #a8bbb2;
+  --line: #28433b;
+  --panel: #10231e;
+  --field: #172d27;
+  --accent: #45d7c4;
+  --accent-strong: #8ff0df;
+  --sun: #f2c35f;
+  --rose: #f08a8a;
+  --shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -21,6 +39,12 @@ body {
   min-height: 100vh;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--ink);
+  background:
+    linear-gradient(120deg, rgba(69, 215, 196, 0.14), transparent 34rem),
+    linear-gradient(180deg, #081411, #0d1f1a);
+}
+
+:root[data-theme="light"] body {
   background:
     linear-gradient(120deg, rgba(15, 118, 110, 0.10), transparent 34rem),
     linear-gradient(180deg, #f7faf8, #ecf2ef);
@@ -41,12 +65,37 @@ body {
 }
 
 .eyebrow {
-  margin: 0 0 10px;
+  margin: 0;
   color: var(--accent);
   font-size: 0.8rem;
   font-weight: 800;
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.theme-toggle {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
 }
 
 h1,
@@ -106,6 +155,11 @@ h2 {
   font-weight: 800;
 }
 
+:root[data-theme="dark"] .pill {
+  background: rgba(69, 215, 196, 0.16);
+  color: var(--accent-strong);
+}
+
 .pill.error {
   background: #fae8e8;
   color: #8d2d2d;
@@ -126,7 +180,7 @@ h2 {
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.78);
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
 }
 
 label,
@@ -224,6 +278,11 @@ input:focus {
   white-space: nowrap;
 }
 
+:root[data-theme="dark"] .status {
+  background: rgba(242, 195, 95, 0.16);
+  color: var(--sun);
+}
+
 .slot a {
   min-height: 42px;
   display: inline-flex;
@@ -246,7 +305,7 @@ input:focus {
   padding: 28px;
   border: 1px dashed var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.62);
+  background: color-mix(in srgb, var(--panel) 72%, transparent);
   color: var(--muted);
   text-align: center;
 }

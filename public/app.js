@@ -6,12 +6,21 @@ const els = {
   dateFilter: document.querySelector("#dateFilter"),
   timeFilter: document.querySelector("#timeFilter"),
   searchFilter: document.querySelector("#searchFilter"),
+  statusMix: document.querySelector("#statusMix"),
+  themeToggle: document.querySelector("#themeToggle"),
   resultCount: document.querySelector("#resultCount"),
   slots: document.querySelector("#slots"),
   emptyState: document.querySelector("#emptyState")
 };
 
 let data = { slots: [], summary: {} };
+let theme = localStorage.getItem("theme") || "dark";
+
+function applyTheme() {
+  document.documentElement.dataset.theme = theme;
+  els.themeToggle.textContent = theme === "dark" ? "Light mode" : "Dark mode";
+  els.themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
+}
 
 function formatDate(value) {
   return new Intl.DateTimeFormat("en", {
@@ -91,7 +100,7 @@ function slotCard(slot) {
       <strong>${slot.roomName}</strong><br>
       ${slot.courtName || "Mitsuike Park"}
     </div>
-    <a href="${slot.link}" target="_blank" rel="noreferrer">Open official page</a>
+    <a href="${slot.link}" target="_blank" rel="noreferrer">Reserve this slot</a>
   `;
   return article;
 }
@@ -113,6 +122,13 @@ function renderSummary() {
   els.dateWindow.textContent = dates.length
     ? `${formatDate(dates[0])} - ${formatDate(dates[dates.length - 1])}`
     : "--";
+
+  const statusCounts = data.summary?.statusCounts || {};
+  els.statusMix.textContent = Object.entries(statusCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([status, count]) => `${status} ${count}`)
+    .join(", ") || "--";
 }
 
 async function load() {
@@ -136,5 +152,11 @@ async function load() {
 els.dateFilter.addEventListener("change", render);
 els.timeFilter.addEventListener("change", render);
 els.searchFilter.addEventListener("input", render);
+els.themeToggle.addEventListener("click", () => {
+  theme = theme === "dark" ? "light" : "dark";
+  localStorage.setItem("theme", theme);
+  applyTheme();
+});
 
+applyTheme();
 load();

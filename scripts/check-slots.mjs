@@ -41,11 +41,60 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function extractJsonObject(str, startIndex) {
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  let quoteChar = null;
+
+  for (let i = startIndex; i < str.length; i++) {
+    const char = str[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (char === '\\') {
+      escape = true;
+      continue;
+    }
+    if (inString) {
+      if (char === quoteChar) {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      inString = true;
+      quoteChar = char;
+      continue;
+    }
+    if (char === '{' || char === '[') {
+      depth++;
+    } else if (char === '}' || char === ']') {
+      depth--;
+      if (depth === 0) {
+        return str.slice(startIndex, i + 1);
+      }
+    }
+  }
+  return null;
+}
+
 function jsonScriptValue(html, key) {
   const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = html.match(new RegExp(`${escaped}:\\s*(\\{.*?\\}|\\[.*?\\]|".*?"|'.*?'|[^,\\n]+)\\s*(?:,|\\n)`, "s"));
+  const regex = new RegExp(`${escaped}:\\s*`);
+  const match = html.match(regex);
   if (!match) return null;
-  return match[1].trim();
+  const startIndex = match.index + match[0].length;
+  const firstChar = html[startIndex];
+
+  if (firstChar === '{' || firstChar === '[') {
+    return extractJsonObject(html, startIndex);
+  }
+
+  // fallback for strings, numbers, etc.
+  const endMatch = html.slice(startIndex).match(/^(?:"[^"\\]*(?:\\.[^"\\]*)*"|'[^'\\]*(?:\\.[^'\\]*)*'|[^,\n]+)/);
+  return endMatch ? endMatch[0].trim() : null;
 }
 
 function extractVerificationToken(html) {
@@ -115,8 +164,11 @@ function availabilityUrl({ facility, room, purpose, date }) {
   return url.toString();
 }
 
-function slotUrl({ facility, room, purpose, date }) {
-  return availabilityUrl({ facility, room, purpose, date });
+function slotUrl({ facility, room, purpose, date, frame }) {
+  const url = new URL(availabilityUrl({ facility, room, purpose, date }));
+  url.searchParams.set("ust", frame.usageStartTime);
+  url.searchParams.set("uet", frame.usageEndTime);
+  return url.toString();
 }
 
 function timeFrameMap(dayData) {
@@ -132,11 +184,13 @@ function timeFrameMap(dayData) {
 function collectOpenSlots({ dayData, facility, room, area, purpose, date }) {
   const frames = timeFrameMap(dayData);
   const slots = [];
+  const statusCounts = {};
 
   for (const apiRoom of dayData.rooms || []) {
     for (const court of apiRoom.courts || []) {
       for (const book of court.dayBooks || []) {
         for (const usageTime of book.usageTimes || []) {
+          statusCounts[usageTime.statusType] = (statusCounts[usageTime.statusType] || 0) + 1;
           if (!openStatusTypes.has(usageTime.statusType)) continue;
           const frame = frames.get(usageTime.usageTimeFrameId);
           if (!frame) continue;
@@ -155,14 +209,14 @@ function collectOpenSlots({ dayData, facility, room, area, purpose, date }) {
             facilityCode: facility.fc,
             roomCode: apiRoom.roomCode || room.rc,
             phoneNumber: apiRoom.fieldOfficePhoneNumber || facility.phoneNumber || null,
-            link: slotUrl({ facility, room, purpose, date })
+            link: slotUrl({ facility, room, purpose, date, frame })
           });
         }
       }
     }
   }
 
-  return slots;
+  return { slots, statusCounts };
 }
 
 async function getDaySlots({ facility, room, area, purpose, date }) {
@@ -190,6 +244,7 @@ async function run() {
   const dates = dateRange(config.daysAhead || 14);
   const checks = [];
   const slots = [];
+  const statusCounts = {};
   const facilitiesSeen = new Set();
   const roomsSeen = new Set();
 
@@ -219,7 +274,11 @@ async function run() {
             roomsSeen.add(`${facility.lgc}:${facility.fc}:${room.rc}`);
             await sleep(config.requestDelayMs ?? 350);
             try {
-              slots.push(...await getDaySlots({ facility, room, area, purpose, date }));
+              const detail = await getDaySlots({ facility, room, area, purpose, date });
+              slots.push(...detail.slots);
+              for (const [status, count] of Object.entries(detail.statusCounts)) {
+                statusCounts[status] = (statusCounts[status] || 0) + count;
+              }
             } catch (error) {
               checks.push({
                 date,
@@ -252,7 +311,8 @@ async function run() {
       openSlotCount: slots.length,
       facilityCount: facilitiesSeen.size,
       roomCount: roomsSeen.size,
-      datesChecked: dates
+      datesChecked: dates,
+      statusCounts
     },
     slots,
     checks

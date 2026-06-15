@@ -10,14 +10,17 @@
     <main class="shell">
       <section class="hero">
         <div>
-          <p class="eyebrow">Kanagawa public courts</p>
+          <div class="topline">
+            <p class="eyebrow">Kanagawa public courts</p>
+            <button id="themeToggle" class="theme-toggle" type="button" aria-pressed="true">Light mode</button>
+          </div>
           <h1>Mitsuike Park tennis availability</h1>
-          <p class="lede">Open court slots refreshed every two hours from the official e-kanagawa reservation service.</p>
+          <p class="lede">Requestable court slots refreshed every two hours from the official e-kanagawa reservation service.</p>
         </div>
         <div class="status-panel">
           <span id="health" class="pill">Loading</span>
           <strong id="slotCount">--</strong>
-          <span>open slots</span>
+          <span>requestable slots</span>
         </div>
       </section>
 
@@ -56,17 +59,21 @@
           <span>Window</span>
           <strong id="dateWindow">--</strong>
         </div>
+        <div>
+          <span>Status mix</span>
+          <strong id="statusMix">--</strong>
+        </div>
       </section>
 
       <section>
         <div class="section-heading">
-          <h2>Available slots</h2>
+          <h2>Requestable slots</h2>
           <span id="resultCount">-- results</span>
         </div>
         <div id="slots" class="slots" aria-live="polite"></div>
         <div id="emptyState" class="empty" hidden>
           <strong>No matching open slots.</strong>
-          <span>Try another date or wait for the next scheduled refresh.</span>
+          <span>Only slots that can be applied for now are shown.</span>
         </div>
       </section>
     </main>

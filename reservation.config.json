@@ -1,6 +1,6 @@
 {
   "baseUrl": "https://s-yoyaku.e-kanagawa.lg.jp/kanagawa",
-  "daysAhead": 14,
+  "daysAhead": 30,
   "requestDelayMs": 350,
   "internetOnly": true,
   "areas": [
@@ -44,11 +44,7 @@
   },
   "openStatusTypes": [
     "A01",
-    "A02",
-    "A03",
     "L01",
-    "L02",
-    "U08",
-    "U10"
+    "L02"
   ]
 }
