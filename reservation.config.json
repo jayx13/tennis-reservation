@@ -1,0 +1,54 @@
+{
+  "baseUrl": "https://s-yoyaku.e-kanagawa.lg.jp/kanagawa",
+  "daysAhead": 14,
+  "requestDelayMs": 350,
+  "internetOnly": true,
+  "areas": [
+    {
+      "ac": "101",
+      "an": "Yokohama"
+    }
+  ],
+  "purposes": [
+    {
+      "upi": 3,
+      "name": "Hard tennis",
+      "category": "Competitive sports"
+    }
+  ],
+  "facilityCategory": "01",
+  "facilities": [
+    {
+      "lgc": "140007",
+      "fc": "0002",
+      "name": "Mitsuike Park"
+    }
+  ],
+  "statusTypes": {
+    "A01": "Available",
+    "A02": "Availability only",
+    "A03": "Phone reception",
+    "L01": "Lottery open",
+    "L02": "Lottery open",
+    "L03": "Lottery pending",
+    "R03": "Booked",
+    "U01": "Closed",
+    "U02": "Not published yet",
+    "U03": "Not accepting yet",
+    "U04": "Publication ended",
+    "U05": "Reception ended",
+    "U07": "Unavailable",
+    "U08": "Public use",
+    "U09": "Maintenance",
+    "U10": "Counter reception"
+  },
+  "openStatusTypes": [
+    "A01",
+    "A02",
+    "A03",
+    "L01",
+    "L02",
+    "U08",
+    "U10"
+  ]
+}

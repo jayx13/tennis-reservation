@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mitsuike Tennis Slots</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Kanagawa public courts</p>
+          <h1>Mitsuike Park tennis availability</h1>
+          <p class="lede">Open court slots refreshed every two hours from the official e-kanagawa reservation service.</p>
+        </div>
+        <div class="status-panel">
+          <span id="health" class="pill">Loading</span>
+          <strong id="slotCount">--</strong>
+          <span>open slots</span>
+        </div>
+      </section>
+
+      <section class="toolbar" aria-label="Filters">
+        <label>
+          Date
+          <select id="dateFilter">
+            <option value="">All dates</option>
+          </select>
+        </label>
+        <label>
+          Time
+          <select id="timeFilter">
+            <option value="">All day</option>
+            <option value="morning">Morning</option>
+            <option value="afternoon">Afternoon</option>
+            <option value="evening">Evening</option>
+          </select>
+        </label>
+        <label class="search">
+          Search
+          <input id="searchFilter" type="search" placeholder="Court, status, time">
+        </label>
+      </section>
+
+      <section class="meta-grid" aria-label="Check summary">
+        <div>
+          <span>Last checked</span>
+          <strong id="lastChecked">--</strong>
+        </div>
+        <div>
+          <span>Facility</span>
+          <strong>Mitsuike Park</strong>
+        </div>
+        <div>
+          <span>Window</span>
+          <strong id="dateWindow">--</strong>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-heading">
+          <h2>Available slots</h2>
+          <span id="resultCount">-- results</span>
+        </div>
+        <div id="slots" class="slots" aria-live="polite"></div>
+        <div id="emptyState" class="empty" hidden>
+          <strong>No matching open slots.</strong>
+          <span>Try another date or wait for the next scheduled refresh.</span>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>
