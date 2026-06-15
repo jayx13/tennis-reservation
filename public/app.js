@@ -85,31 +85,81 @@ function renderDateOptions() {
   }
 }
 
-function slotCard(slot) {
-  const article = document.createElement("article");
-  article.className = "slot";
-  article.innerHTML = `
-    <div class="slot-header">
-      <div>
-        <div class="date">${formatDate(slot.date)}</div>
-        <div class="time">${slot.startTime}-${slot.endTime}</div>
-      </div>
-      <span class="status">${slot.statusLabel}</span>
-    </div>
-    <div class="court">
-      <strong>${slot.roomName}</strong><br>
-      ${slot.courtName || "Mitsuike Park"}
-    </div>
-    <a href="${slot.link}" target="_blank" rel="noreferrer">Reserve this slot</a>
-  `;
-  return article;
+function formatDayName(value) {
+  return new Intl.DateTimeFormat("en", {
+    weekday: "long",
+    timeZone: "Asia/Tokyo"
+  }).format(new Date(`${value}T00:00:00+09:00`));
+}
+
+function formatDateLabel(value) {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    timeZone: "Asia/Tokyo"
+  }).format(new Date(`${value}T00:00:00+09:00`));
+}
+
+function groupSlotsByDate(slots) {
+  const groups = {};
+  for (const slot of slots) {
+    if (!groups[slot.date]) {
+      groups[slot.date] = [];
+    }
+    groups[slot.date].push(slot);
+  }
+  return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
 }
 
 function render() {
   const slots = filteredSlots();
-  els.slots.replaceChildren(...slots.map(slotCard));
   els.resultCount.textContent = `${slots.length} result${slots.length === 1 ? "" : "s"}`;
   els.emptyState.hidden = slots.length > 0;
+
+  if (slots.length === 0) {
+    els.slots.replaceChildren();
+    return;
+  }
+
+  const groups = groupSlotsByDate(slots);
+
+  const groupElements = groups.map(([date, dateSlots]) => {
+    const section = document.createElement("section");
+    section.className = "date-group";
+
+    const header = document.createElement("div");
+    header.className = "date-group-header";
+    header.innerHTML = `
+      <span class="date-group-day-name">${formatDayName(date)}</span>
+      <h3 class="date-group-date-label">${formatDateLabel(date)}</h3>
+    `;
+    section.appendChild(header);
+
+    const slotsGrid = document.createElement("div");
+    slotsGrid.className = "date-group-slots";
+
+    for (const slot of dateSlots) {
+      const card = document.createElement("article");
+      card.className = "slot-card";
+      card.innerHTML = `
+        <div class="slot-card-time">${slot.startTime} - ${slot.endTime}</div>
+        <div class="slot-card-court">
+          <strong>${slot.roomName}</strong>
+          ${slot.courtName ? `<br><small>${slot.courtName}</small>` : ''}
+        </div>
+        <div class="slot-card-status-row">
+          <span class="status">${slot.statusLabel}</span>
+          <a href="${slot.link}" target="_blank" rel="noreferrer" class="reserve-btn">Reserve</a>
+        </div>
+      `;
+      slotsGrid.appendChild(card);
+    }
+
+    section.appendChild(slotsGrid);
+    return section;
+  });
+
+  els.slots.replaceChildren(...groupElements);
 }
 
 function renderSummary() {
