@@ -144,6 +144,7 @@ function render() {
       card.innerHTML = `
         <div class="slot-card-time">${slot.startTime} - ${slot.endTime}</div>
         <div class="slot-card-court">
+          <span class="slot-card-facility">${slot.facilityName}</span>
           <strong>${slot.roomName}</strong>
           ${slot.courtName ? `<br><small>${slot.courtName}</small>` : ''}
         </div>

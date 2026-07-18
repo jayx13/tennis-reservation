@@ -2,6 +2,7 @@
   "baseUrl": "https://s-yoyaku.e-kanagawa.lg.jp/kanagawa",
   "daysAhead": 30,
   "requestDelayMs": 350,
+  "concurrency": 4,
   "internetOnly": true,
   "areas": [
     {
@@ -18,6 +19,11 @@
   ],
   "facilityCategory": "01",
   "facilities": [
+    {
+      "lgc": "140007",
+      "fc": "0001",
+      "name": "Hodogaya Park"
+    },
     {
       "lgc": "140007",
       "fc": "0002",

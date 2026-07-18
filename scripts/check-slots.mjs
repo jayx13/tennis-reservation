@@ -247,6 +247,7 @@ async function run() {
   const statusCounts = {};
   const facilitiesSeen = new Set();
   const roomsSeen = new Set();
+  const detailTasks = [];
 
   for (const date of dates) {
     for (const area of config.areas || []) {
@@ -272,28 +273,38 @@ async function run() {
           for (const room of facility.rs || []) {
             if (room.rut <= "2" || room.sa === false) continue;
             roomsSeen.add(`${facility.lgc}:${facility.fc}:${room.rc}`);
-            await sleep(config.requestDelayMs ?? 350);
-            try {
-              const detail = await getDaySlots({ facility, room, area, purpose, date });
-              slots.push(...detail.slots);
-              for (const [status, count] of Object.entries(detail.statusCounts)) {
-                statusCounts[status] = (statusCounts[status] || 0) + count;
-              }
-            } catch (error) {
-              checks.push({
-                date,
-                area: area.an,
-                purpose: purpose.name,
-                facility: facility.fn,
-                room: room.rn,
-                error: error.message
-              });
-            }
+            detailTasks.push({ facility, room, area, purpose, date });
           }
         }
       }
     }
   }
+
+  let taskIndex = 0;
+  const workerCount = Math.max(1, Number(config.concurrency || 1));
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (taskIndex < detailTasks.length) {
+      const task = detailTasks[taskIndex++];
+      await sleep(config.requestDelayMs ?? 350);
+      try {
+        const detail = await getDaySlots(task);
+        slots.push(...detail.slots);
+        for (const [status, count] of Object.entries(detail.statusCounts)) {
+          statusCounts[status] = (statusCounts[status] || 0) + count;
+        }
+      } catch (error) {
+        checks.push({
+          date: task.date,
+          area: task.area.an,
+          purpose: task.purpose.name,
+          facility: task.facility.fn,
+          room: task.room.rn,
+          error: error.message
+        });
+      }
+    }
+  });
+  await Promise.all(workers);
 
   slots.sort((a, b) => {
     return `${a.date} ${a.startTime} ${a.facilityName} ${a.roomName}`.localeCompare(
