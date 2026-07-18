@@ -52,5 +52,31 @@
     "A01",
     "L01",
     "L02"
-  ]
+  ],
+  "yokohama": {
+    "baseUrl": "https://www.shisetsu.city.yokohama.lg.jp/user/",
+    "purpose": "35",
+    "facilities": [
+      {
+        "code": "47",
+        "name": "新横浜公園",
+        "displayName": "Shin Yokohama Park"
+      },
+      {
+        "code": "27",
+        "name": "三ツ沢公園",
+        "displayName": "Mitsuzawa Park"
+      },
+      {
+        "code": "25",
+        "name": "潮田公園",
+        "displayName": "Ushioda Park"
+      },
+      {
+        "code": "26",
+        "name": "入船公園",
+        "displayName": "Irifune Park"
+      }
+    ]
+  }
 }

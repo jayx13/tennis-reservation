@@ -59,7 +59,8 @@ function matchesSearch(slot, query) {
     slot.statusLabel,
     slot.facilityName,
     slot.roomName,
-    slot.courtName
+    slot.courtName,
+    slot.provider
   ].join(" ").toLowerCase().includes(query);
 }
 
@@ -150,8 +151,9 @@ function render() {
         </div>
         <div class="slot-card-status-row">
           <span class="status">${slot.statusLabel}</span>
-          <a href="${slot.link}" target="_blank" rel="noreferrer" class="reserve-btn">Reserve</a>
+          <a href="${slot.link}" target="_blank" rel="noreferrer" class="reserve-btn">${slot.provider === "yokohama" ? "Open system" : "Reserve"}</a>
         </div>
+        ${slot.linkNote ? `<small class="slot-card-note">${slot.linkNote}</small>` : ""}
       `;
       slotsGrid.appendChild(card);
     }

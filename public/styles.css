@@ -315,6 +315,12 @@ input:focus {
   color: var(--muted);
 }
 
+.slot-card-note {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 .slot-card-status-row {
   display: flex;
   align-items: center;
