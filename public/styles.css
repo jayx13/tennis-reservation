@@ -6,6 +6,7 @@
   --panel: #ffffff;
   --field: #f4f7f5;
   --accent: #0f766e;
+  --accent-ink: #ffffff;
   --accent-strong: #134e4a;
   --sun: #f2b84b;
   --rose: #c65d5d;
@@ -20,6 +21,7 @@
   --panel: #10231e;
   --field: #172d27;
   --accent: #45d7c4;
+  --accent-ink: #062d27;
   --accent-strong: #8ff0df;
   --sun: #f2c35f;
   --rose: #f08a8a;
@@ -163,6 +165,39 @@ h2 {
 .pill.error {
   background: #fae8e8;
   color: #8d2d2d;
+}
+
+.sport-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 5px;
+  width: fit-content;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.sport-tab {
+  min-width: 120px;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.sport-tab:hover {
+  color: var(--ink);
+}
+
+.sport-tab.active {
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 .toolbar,
@@ -387,6 +422,15 @@ input:focus {
   .toolbar,
   .meta-grid {
     grid-template-columns: 1fr;
+  }
+
+  .sport-tabs {
+    width: 100%;
+  }
+
+  .sport-tab {
+    flex: 1;
+    min-width: 0;
   }
 
   .status-panel {

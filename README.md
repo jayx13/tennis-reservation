@@ -1,8 +1,8 @@
-# 🎾 Tennis Reservation Watcher
+# Yokohama Sports Reservation Watcher
 
-A lightweight scraper and web dashboard to monitor and view tennis court availability in **Kanagawa Prefecture** and **Yokohama City**.
+A lightweight scraper and web dashboard for tennis availability in **Kanagawa Prefecture** and **Yokohama City**, plus nearby basketball courts from the **Yokohama City reservation system**.
 
-It aggregates open court slots from both booking systems and displays them in a single, responsive, dark-mode friendly web interface.
+Tennis and basketball appear on separate tabs. Basketball checks Nishi Sports Center, Hiranuma Memorial Gymnasium, and Kanagawa Sports Center in distance order from Yokohama Station.
 
 ---
 
@@ -41,7 +41,7 @@ You can customize which parks, dates, or search purposes the watcher checks by e
 Key options:
 - `daysAhead`: Number of days in the future to check (default: `30`).
 - `facilities`: List of Kanagawa Prefecture park facilities (e.g. Hodogaya Park, Mitsuike Park).
-- `yokohama.facilities`: List of Yokohama City facilities (e.g. Shin Yokohama Park, Mitsuzawa Park).
+- `yokohama.facilities`: Yokohama City tennis and basketball facilities. Each entry identifies its `sport`.
 
 ---
 

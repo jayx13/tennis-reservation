@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Kanagawa Tennis Slots</title>
+    <title>Yokohama Sports Slots</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -11,11 +11,11 @@
       <section class="hero">
         <div>
           <div class="topline">
-            <p class="eyebrow">Kanagawa public courts</p>
+            <p class="eyebrow" id="eyebrow">Kanagawa public courts</p>
             <button id="themeToggle" class="theme-toggle" type="button" aria-pressed="true">Light mode</button>
           </div>
-          <h1>Kanagawa tennis availability</h1>
-          <p class="lede">Requestable court slots refreshed every two hours from the official e-kanagawa reservation service.</p>
+          <h1 id="pageTitle">Kanagawa tennis availability</h1>
+          <p class="lede" id="pageDescription">Requestable court slots refreshed every two hours from the official e-kanagawa reservation service.</p>
         </div>
         <div class="status-panel">
           <span id="health" class="pill">Loading</span>
@@ -23,6 +23,11 @@
           <span>requestable slots</span>
         </div>
       </section>
+
+      <nav class="sport-tabs" aria-label="Sports">
+        <button class="sport-tab active" type="button" data-sport="tennis" aria-selected="true">Tennis</button>
+        <button class="sport-tab" type="button" data-sport="basketball" aria-selected="false">Basketball</button>
+      </nav>
 
       <section class="toolbar" aria-label="Filters">
         <label>
@@ -53,7 +58,7 @@
         </div>
         <div>
           <span>Facilities</span>
-          <strong>Kanagawa + Yokohama</strong>
+          <strong id="facilitySource">Kanagawa + Yokohama</strong>
         </div>
         <div>
           <span>Window</span>
@@ -67,7 +72,7 @@
 
       <section>
         <div class="section-heading">
-          <h2>Requestable slots</h2>
+          <h2 id="resultsTitle">Requestable slots</h2>
           <span id="resultCount">-- results</span>
         </div>
         <div id="slots" class="slots" aria-live="polite"></div>

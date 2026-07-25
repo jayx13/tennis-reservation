@@ -10,11 +10,35 @@ const els = {
   themeToggle: document.querySelector("#themeToggle"),
   resultCount: document.querySelector("#resultCount"),
   slots: document.querySelector("#slots"),
-  emptyState: document.querySelector("#emptyState")
+  emptyState: document.querySelector("#emptyState"),
+  eyebrow: document.querySelector("#eyebrow"),
+  pageTitle: document.querySelector("#pageTitle"),
+  pageDescription: document.querySelector("#pageDescription"),
+  facilitySource: document.querySelector("#facilitySource"),
+  resultsTitle: document.querySelector("#resultsTitle"),
+  sportTabs: [...document.querySelectorAll(".sport-tab")]
 };
 
 let data = { slots: [], summary: {} };
 let theme = localStorage.getItem("theme") || "dark";
+let activeSport = "tennis";
+
+const sportContent = {
+  tennis: {
+    eyebrow: "Kanagawa public courts",
+    title: "Kanagawa tennis availability",
+    description: "Requestable court slots refreshed every two hours from the official e-kanagawa and Yokohama reservation services.",
+    source: "Kanagawa + Yokohama",
+    resultsTitle: "Requestable tennis slots"
+  },
+  basketball: {
+    eyebrow: "Near Yokohama Station",
+    title: "Yokohama basketball availability",
+    description: "Open gym slots at the closest municipal courts, sourced only from Yokohama's official reservation system.",
+    source: "Yokohama system only",
+    resultsTitle: "Nearby basketball slots"
+  }
+};
 
 function applyTheme() {
   document.documentElement.dataset.theme = theme;
@@ -70,20 +94,26 @@ function filteredSlots() {
   const query = els.searchFilter.value.trim().toLowerCase();
 
   return data.slots.filter((slot) => {
-    return (!date || slot.date === date) &&
+    return (slot.sport || "tennis") === activeSport &&
+      (!date || slot.date === date) &&
       (!bucket || timeBucket(slot) === bucket) &&
       matchesSearch(slot, query);
   });
 }
 
 function renderDateOptions() {
-  const dates = [...new Set(data.slots.map((slot) => slot.date))];
+  const previousDate = els.dateFilter.value;
+  const dates = [...new Set(data.slots
+    .filter((slot) => (slot.sport || "tennis") === activeSport)
+    .map((slot) => slot.date))];
+  els.dateFilter.replaceChildren(new Option("All dates", ""));
   for (const date of dates) {
     const option = document.createElement("option");
     option.value = date;
     option.textContent = formatDate(date);
     els.dateFilter.append(option);
   }
+  els.dateFilter.value = dates.includes(previousDate) ? previousDate : "";
 }
 
 function formatDayName(value) {
@@ -147,7 +177,8 @@ function render() {
         <div class="slot-card-court">
           <span class="slot-card-facility">${slot.facilityName}</span>
           <strong>${slot.roomName}</strong>
-          ${slot.courtName ? `<br><small>${slot.courtName}</small>` : ''}
+          ${slot.courtName ? `<br><small>${slot.courtName}</small>` : ""}
+          ${slot.distanceFromYokohamaStationKm != null ? `<br><small>${slot.distanceFromYokohamaStationKm} km from Yokohama Station</small>` : ""}
         </div>
         <div class="slot-card-status-row">
           <span class="status">${slot.statusLabel}</span>
@@ -166,9 +197,16 @@ function render() {
 }
 
 function renderSummary() {
+  const sportSlots = data.slots.filter((slot) => (slot.sport || "tennis") === activeSport);
+  const content = sportContent[activeSport];
+  els.eyebrow.textContent = content.eyebrow;
+  els.pageTitle.textContent = content.title;
+  els.pageDescription.textContent = content.description;
+  els.facilitySource.textContent = content.source;
+  els.resultsTitle.textContent = content.resultsTitle;
   els.health.textContent = data.ok ? "Live data" : "Check failed";
   els.health.classList.toggle("error", !data.ok);
-  els.slotCount.textContent = String(data.summary?.openSlotCount ?? 0);
+  els.slotCount.textContent = String(sportSlots.length);
   els.lastChecked.textContent = formatChecked(data.generatedAt);
 
   const dates = data.summary?.datesChecked || [];
@@ -176,7 +214,10 @@ function renderSummary() {
     ? `${formatDate(dates[0])} - ${formatDate(dates[dates.length - 1])}`
     : "--";
 
-  const statusCounts = data.summary?.statusCounts || {};
+  const statusCounts = sportSlots.reduce((counts, slot) => {
+    counts[slot.statusLabel] = (counts[slot.statusLabel] || 0) + 1;
+    return counts;
+  }, {});
   els.statusMix.textContent = Object.entries(statusCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
@@ -205,6 +246,19 @@ async function load() {
 els.dateFilter.addEventListener("change", render);
 els.timeFilter.addEventListener("change", render);
 els.searchFilter.addEventListener("input", render);
+for (const tab of els.sportTabs) {
+  tab.addEventListener("click", () => {
+    activeSport = tab.dataset.sport;
+    for (const item of els.sportTabs) {
+      const selected = item === tab;
+      item.classList.toggle("active", selected);
+      item.setAttribute("aria-selected", String(selected));
+    }
+    renderSummary();
+    renderDateOptions();
+    render();
+  });
+}
 els.themeToggle.addEventListener("click", () => {
   theme = theme === "dark" ? "light" : "dark";
   localStorage.setItem("theme", theme);

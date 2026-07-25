@@ -55,27 +55,61 @@
   ],
   "yokohama": {
     "baseUrl": "https://www.shisetsu.city.yokohama.lg.jp/user/",
-    "purpose": "35",
     "facilities": [
       {
         "code": "47",
         "name": "新横浜公園",
-        "displayName": "Shin Yokohama Park"
+        "displayName": "Shin Yokohama Park",
+        "sport": "tennis",
+        "purpose": "Tennis"
       },
       {
         "code": "27",
         "name": "三ツ沢公園",
-        "displayName": "Mitsuzawa Park"
+        "displayName": "Mitsuzawa Park",
+        "sport": "tennis",
+        "purpose": "Tennis"
       },
       {
         "code": "25",
         "name": "潮田公園",
-        "displayName": "Ushioda Park"
+        "displayName": "Ushioda Park",
+        "sport": "tennis",
+        "purpose": "Tennis"
       },
       {
         "code": "26",
         "name": "入船公園",
-        "displayName": "Irifune Park"
+        "displayName": "Irifune Park",
+        "sport": "tennis",
+        "purpose": "Tennis"
+      },
+      {
+        "code": "3",
+        "name": "西スポーツセンター",
+        "displayName": "Nishi Sports Center",
+        "sport": "basketball",
+        "purpose": "Basketball",
+        "purposeCode": "9",
+        "distanceFromYokohamaStationKm": 1.8
+      },
+      {
+        "code": "19",
+        "name": "平沼記念体育館",
+        "displayName": "Hiranuma Memorial Gymnasium",
+        "sport": "basketball",
+        "purpose": "Basketball",
+        "purposeCode": "9",
+        "distanceFromYokohamaStationKm": 3.0
+      },
+      {
+        "code": "2",
+        "name": "神奈川スポーツセンター",
+        "displayName": "Kanagawa Sports Center",
+        "sport": "basketball",
+        "purpose": "Basketball",
+        "purposeCode": "9",
+        "distanceFromYokohamaStationKm": 4.2
       }
     ]
   }

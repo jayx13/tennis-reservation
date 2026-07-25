@@ -3,7 +3,9 @@ import path from "node:path";
 
 const root = process.cwd();
 const config = JSON.parse(await readFile(path.join(root, "reservation.config.json"), "utf8"));
-const outputPath = path.join(root, "public", "data", "availability.json");
+const outputPath = process.env.RESERVATION_OUTPUT_PATH
+  ? path.resolve(root, process.env.RESERVATION_OUTPUT_PATH)
+  : path.join(root, "public", "data", "availability.json");
 
 const headers = {
   "accept": "application/json, text/plain, */*",
@@ -60,6 +62,13 @@ function decodeHtml(value) {
 
 function isTennisCourtName(name) {
   return /テニス|庭球/i.test(String(name || ""));
+}
+
+function matchesYokohamaRoom(facility, name) {
+  if (facility.sport === "basketball") {
+    return /メインアリーナ|第一体育室|^体育室$/i.test(String(name || ""));
+  }
+  return isTennisCourtName(name);
 }
 
 function extractJsonObject(str, startIndex) {
@@ -248,6 +257,7 @@ function collectOpenSlots({ dayData, facility, room, area, purpose, date }) {
           if (!frame) continue;
 
           slots.push({
+            sport: "tennis",
             date,
             startTime: frame.usageStartTime.slice(0, 5),
             endTime: frame.usageEndTime.slice(0, 5),
@@ -377,7 +387,7 @@ async function getYokohamaAvailabilityGrid(session, startDate) {
 async function getYokohamaTimeSlots({ session, facility, common, startDate }) {
   const availableSelections = [];
   for (const [rowIndex, row] of (common.Rows || []).entries()) {
-    if (!isTennisCourtName(row.Name)) continue;
+    if (!matchesYokohamaRoom(facility, row.Name)) continue;
     for (const [cellIndex, cell] of (row.Cells || []).entries()) {
       if (cell.IsEnabledForUser && yokohamaOpenStatuses.has(cell.DisplayStatusForUser)) {
         availableSelections.push({ rowIndex, cellIndex });
@@ -442,20 +452,21 @@ async function getYokohamaTimeSlots({ session, facility, common, startDate }) {
       for (const day of facilityItem.Days || []) {
         const date = day.UseDate.slice(0, 10);
         for (const row of day.DisplayRows || []) {
-          if (!isTennisCourtName(row.ObjectName)) continue;
+          if (!matchesYokohamaRoom(facility, row.ObjectName)) continue;
           for (const cell of row.DisplayCells || []) {
             const statusKey = `YOKOHAMA_${cell.Status}`;
             statusCounts[statusKey] = (statusCounts[statusKey] || 0) + 1;
             if (!(cell.Status === 0 && cell.IsEnabledForUser)) continue;
 
             slots.push({
+              sport: facility.sport || "tennis",
               date,
               startTime: formatTimeNumber(cell.TimeFrom),
               endTime: formatTimeNumber(cell.TimeTo),
               statusType: "YOKOHAMA_AVAILABLE",
               statusLabel: "Available",
               area: "Yokohama",
-              purpose: "Tennis",
+              purpose: facility.purpose || "Tennis",
               facilityName: facility.displayName || facility.name,
               roomName: row.ObjectName,
               courtName: "",
@@ -463,6 +474,7 @@ async function getYokohamaTimeSlots({ session, facility, common, startDate }) {
               roomCode: String(row.ObjectCode),
               phoneNumber: null,
               provider: "yokohama",
+              distanceFromYokohamaStationKm: facility.distanceFromYokohamaStationKm ?? null,
               link: session.baseUrl + "Home",
               linkNote: "Yokohama's exact slot selection is session-based; open the system and search this facility/date/time."
             });
@@ -496,7 +508,7 @@ async function getYokohamaSlots(dates) {
         if (!common) continue;
 
         for (const row of common.Rows || []) {
-          if (!isTennisCourtName(row.Name)) continue;
+          if (!matchesYokohamaRoom(facility, row.Name)) continue;
           roomsSeen.add(`yokohama:${facility.code}:${row.Code}`);
         }
 
@@ -529,7 +541,7 @@ async function getYokohamaSlots(dates) {
 
 async function run() {
   const generatedAt = new Date().toISOString();
-  const dates = dateRange(config.daysAhead || 14);
+  const dates = dateRange(Number(process.env.RESERVATION_DAYS_AHEAD) || config.daysAhead || 14);
   const checks = [];
   const slots = [];
   const statusCounts = {};
@@ -537,7 +549,8 @@ async function run() {
   const roomsSeen = new Set();
   const detailTasks = [];
 
-  for (const date of dates) {
+  if (!process.env.RESERVATION_YOKOHAMA_ONLY) {
+    for (const date of dates) {
     for (const area of config.areas || []) {
       for (const purpose of config.purposes || []) {
         const searchUrl = `${config.baseUrl}/FacilitySearch/Search`;
@@ -592,7 +605,8 @@ async function run() {
       }
     }
   });
-  await Promise.all(workers);
+    await Promise.all(workers);
+  }
 
   const yokohama = await getYokohamaSlots(dates);
   slots.push(...yokohama.slots);
