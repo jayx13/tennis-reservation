@@ -85,6 +85,14 @@
         "purpose": "Tennis"
       },
       {
+        "code": "1",
+        "name": "鶴見スポーツセンター",
+        "displayName": "Tsurumi Sports Center",
+        "sport": "basketball",
+        "purpose": "Basketball",
+        "purposeCode": "9"
+      },
+      {
         "code": "3",
         "name": "西スポーツセンター",
         "displayName": "Nishi Sports Center",
@@ -110,6 +118,38 @@
         "purpose": "Basketball",
         "purposeCode": "9",
         "distanceFromYokohamaStationKm": 4.2
+      },
+      {
+        "code": "4",
+        "name": "中スポーツセンター",
+        "displayName": "Naka Sports Center",
+        "sport": "basketball",
+        "purpose": "Basketball",
+        "purposeCode": "9"
+      },
+      {
+        "code": "5",
+        "name": "南スポーツセンター",
+        "displayName": "Minami Sports Center",
+        "sport": "basketball",
+        "purpose": "Basketball",
+        "purposeCode": "9"
+      },
+      {
+        "code": "6",
+        "name": "港南スポーツセンター",
+        "displayName": "Konan Sports Center",
+        "sport": "basketball",
+        "purpose": "Basketball",
+        "purposeCode": "9"
+      },
+      {
+        "code": "7",
+        "name": "保土ケ谷スポーツセンター",
+        "displayName": "Hodogaya Sports Center",
+        "sport": "basketball",
+        "purpose": "Basketball",
+        "purposeCode": "9"
       }
     ]
   }

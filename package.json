@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node scripts/start.mjs",
     "check": "node scripts/check-slots.mjs",
-    "dev": "python3 -m http.server 4173 -d public"
+    "dev": "python3 -m http.server 4173 -d public",
+    "test": "node scripts/dashboard-contract-test.mjs"
   }
 }

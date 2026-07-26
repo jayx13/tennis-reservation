@@ -3,85 +3,119 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Yokohama Sports Slots</title>
+    <meta name="theme-color" content="#06111e">
+    <meta name="description" content="Live tennis and basketball court availability across Kanagawa and Yokohama.">
+    <title>Court//Finder — Yokohama Sports Availability</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <main class="shell">
-      <section class="hero">
-        <div>
-          <div class="topline">
-            <p class="eyebrow" id="eyebrow">Kanagawa public courts</p>
-            <button id="themeToggle" class="theme-toggle" type="button" aria-pressed="true">Light mode</button>
-          </div>
-          <h1 id="pageTitle">Kanagawa tennis availability</h1>
-          <p class="lede" id="pageDescription">Requestable court slots refreshed every two hours from the official e-kanagawa reservation service.</p>
+    <a class="skip-link" href="#main-content">Skip to availability</a>
+    <div class="arena-grid" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand-mark" href="#main-content" aria-label="Court Finder home">
+          <span>Court</span><i>//</i><span>Finder</span>
+        </a>
+        <div class="live-status" aria-live="polite">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span id="health">Loading live data</span>
         </div>
-        <div class="status-panel">
-          <span id="health" class="pill">Loading</span>
-          <strong id="slotCount">--</strong>
-          <span>requestable slots</span>
+      </div>
+    </header>
+
+    <main id="main-content" class="shell">
+      <section class="hero" aria-labelledby="pageTitle">
+        <div class="hero-copy">
+          <p class="eyebrow" id="eyebrow">Kanagawa public sports · live availability</p>
+          <h1 id="pageTitle">Your next court starts here.</h1>
+          <p class="lede" id="pageDescription">Requestable public tennis courts, refreshed from official reservation services.</p>
+        </div>
+
+        <div class="metric-grid" aria-label="Availability summary">
+          <article class="metric-card metric-card-primary">
+            <strong id="slotCount">--</strong>
+            <span>Live slots</span>
+          </article>
+          <article class="metric-card">
+            <strong id="facilityCount">--</strong>
+            <span id="facilityMetricLabel">Venues tracked</span>
+          </article>
+          <article class="metric-card">
+            <strong>1h</strong>
+            <span>Refresh cycle</span>
+          </article>
         </div>
       </section>
 
-      <nav class="sport-tabs" aria-label="Sports">
-        <button class="sport-tab active" type="button" data-sport="tennis" aria-selected="true">Tennis</button>
-        <button class="sport-tab" type="button" data-sport="basketball" aria-selected="false">Basketball</button>
-      </nav>
+      <section class="availability-panel" aria-label="Court availability">
+        <div class="panel-topline">
+          <nav class="sport-tabs" aria-label="Choose sport">
+            <button class="sport-tab active" type="button" data-sport="tennis" aria-selected="true">
+              <span class="sport-number">01</span> Tennis
+            </button>
+            <button class="sport-tab" type="button" data-sport="basketball" aria-selected="false">
+              <span class="sport-number">02</span> Basketball
+            </button>
+          </nav>
+          <p class="panel-update">Updated <strong id="lastChecked">--</strong></p>
+        </div>
 
-      <section class="toolbar" aria-label="Filters">
-        <label>
-          Date
-          <select id="dateFilter">
-            <option value="">All dates</option>
-          </select>
-        </label>
-        <label>
-          Time
-          <select id="timeFilter">
-            <option value="">All day</option>
-            <option value="morning">Morning</option>
-            <option value="afternoon">Afternoon</option>
-            <option value="evening">Evening</option>
-          </select>
-        </label>
-        <label class="search">
-          Search
-          <input id="searchFilter" type="search" placeholder="Court, status, time">
-        </label>
+        <div class="toolbar" role="search" aria-label="Filter available slots">
+          <label>
+            <span>Date</span>
+            <select id="dateFilter">
+              <option value="">All dates</option>
+            </select>
+          </label>
+          <label>
+            <span>Time</span>
+            <select id="timeFilter">
+              <option value="">Any time</option>
+              <option value="morning">Morning</option>
+              <option value="afternoon">Afternoon</option>
+              <option value="evening">Evening</option>
+            </select>
+          </label>
+          <label class="search-field">
+            <span>Facility or status</span>
+            <input id="searchFilter" type="search" placeholder="Search venues…" autocomplete="off">
+          </label>
+          <label class="weekend-toggle">
+            <input id="weekendFilter" type="checkbox">
+            <span>Weekends only</span>
+          </label>
+          <button id="clearFilters" class="clear-filters" type="button">Clear</button>
+        </div>
+
+        <div class="meta-rail" aria-label="Data summary">
+          <div><span>Source</span><strong id="facilitySource">Kanagawa + Yokohama</strong></div>
+          <div><span>Window</span><strong id="dateWindow">--</strong></div>
+          <div><span>Status</span><strong id="statusMix">--</strong></div>
+        </div>
       </section>
 
-      <section class="meta-grid" aria-label="Check summary">
-        <div>
-          <span>Last checked</span>
-          <strong id="lastChecked">--</strong>
-        </div>
-        <div>
-          <span>Facilities</span>
-          <strong id="facilitySource">Kanagawa + Yokohama</strong>
-        </div>
-        <div>
-          <span>Window</span>
-          <strong id="dateWindow">--</strong>
-        </div>
-        <div>
-          <span>Status mix</span>
-          <strong id="statusMix">--</strong>
-        </div>
-      </section>
-
-      <section>
+      <section class="results-section" aria-labelledby="resultsTitle">
         <div class="section-heading">
-          <h2 id="resultsTitle">Requestable slots</h2>
+          <div>
+            <p class="section-index">Availability / <span id="sportIndex">01</span></p>
+            <h2 id="resultsTitle">Open tennis courts</h2>
+          </div>
           <span id="resultCount">-- results</span>
         </div>
-        <div id="slots" class="slots" aria-live="polite"></div>
+        <div id="slots" class="slots" aria-live="polite" aria-busy="true"></div>
         <div id="emptyState" class="empty" hidden>
+          <span class="empty-code">00</span>
           <strong>No matching open slots.</strong>
-          <span>Only slots that can be applied for now are shown.</span>
+          <span>Adjust the filters or check again after the next refresh.</span>
         </div>
       </section>
     </main>
+
+    <footer class="site-footer">
+      <div><strong>Court//Finder</strong><span>Independent availability dashboard</span></div>
+      <p>Bookings complete on official Kanagawa or Yokohama reservation services.</p>
+    </footer>
 
     <script src="app.js" type="module"></script>
   </body>

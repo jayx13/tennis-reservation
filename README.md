@@ -2,7 +2,7 @@
 
 A lightweight scraper and web dashboard for tennis availability in **Kanagawa Prefecture** and **Yokohama City**, plus nearby basketball courts from the **Yokohama City reservation system**.
 
-Tennis and basketball appear on separate tabs. Basketball checks Nishi Sports Center, Hiranuma Memorial Gymnasium, and Kanagawa Sports Center in distance order from Yokohama Station.
+Tennis and basketball appear on separate tabs. Basketball checks eight Yokohama venues: Tsurumi, Kanagawa, Nishi, Naka, Minami, Konan, and Hodogaya Sports Centers, plus Hiranuma Memorial Gymnasium.
 
 ---
 
@@ -29,7 +29,7 @@ npm start
 3. **Launches Web Server:** Starts a fast, zero-dependency Node.js HTTP server at **[http://localhost:4173](http://localhost:4173)**.
 4. **Auto-opens page:** Launches your default web browser to view the slots dashboard.
 5. **Keeps data fresh:**
-   - Periodically refreshes availability in the background (every 2 hours).
+   - Periodically refreshes availability in the background (every hour).
    - Allows **manual updates** at any time by pressing **`r`** in the terminal window.
 
 ---

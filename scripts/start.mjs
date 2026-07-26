@@ -183,8 +183,8 @@ async function main() {
   // Start the server
   startServer(4173);
 
-  // Setup periodic updates (every 2 hours)
-  setInterval(runScraper, 2 * 60 * 60 * 1000);
+  // Setup periodic updates (hourly)
+  setInterval(runScraper, 60 * 60 * 1000);
 
   // Setup interactive CLI keypress listener
   setupInteractiveInput();
