@@ -996,6 +996,162 @@ input:hover {
   }
 }
 
+.availability-timeline {
+  display: grid;
+  gap: 18px;
+}
+
+.time-group {
+  overflow: hidden;
+  border: 1px solid rgba(88, 219, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(8, 27, 43, 0.72);
+}
+
+.time-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px 18px;
+  border-bottom: 1px solid rgba(88, 219, 255, 0.14);
+  background: linear-gradient(90deg, rgba(88, 219, 255, 0.11), rgba(173, 255, 82, 0.035));
+}
+
+.time-group-range {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  letter-spacing: 0.025em;
+}
+
+.time-group-range span {
+  color: var(--cyan);
+}
+
+.time-group-count {
+  flex: none;
+  border: 1px solid rgba(173, 255, 82, 0.28);
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--acid);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.time-group-facilities {
+  display: grid;
+}
+
+.time-group .slot-card {
+  grid-template-columns: minmax(210px, 1.35fr) minmax(170px, 0.7fr) minmax(280px, auto);
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.time-group .slot-card:last-child {
+  border-bottom: 0;
+}
+
+.time-group .slot-card:hover {
+  transform: none;
+  background: rgba(88, 219, 255, 0.035);
+}
+
+.facility-availability-main {
+  min-width: 0;
+}
+
+.facility-courts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.court-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border: 1px solid rgba(173, 255, 82, 0.25);
+  border-radius: 999px;
+  padding: 4px 10px;
+  color: var(--text);
+  background: rgba(173, 255, 82, 0.07);
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.15;
+}
+
+.time-group .slot-card-meta,
+.time-group .slot-card-status-row {
+  align-self: center;
+}
+
+.time-group .slot-card-warning,
+.time-group .slot-source-link {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 900px) {
+  .time-group .slot-card {
+    grid-template-columns: minmax(0, 1fr) minmax(250px, auto);
+  }
+
+  .time-group .slot-card-meta {
+    align-items: flex-end;
+  }
+
+  .time-group .slot-card-status-row {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 680px) {
+  .availability-timeline {
+    gap: 14px;
+  }
+
+  .time-group-header {
+    align-items: flex-start;
+    padding: 13px 14px;
+  }
+
+  .time-group-range {
+    gap: 7px;
+    font-size: 1.35rem;
+  }
+
+  .time-group .slot-card,
+  .time-group .slot-card-komaoka {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 16px 14px;
+  }
+
+  .time-group .slot-card-meta {
+    align-items: flex-start;
+  }
+
+  .time-group .slot-card-status-row,
+  .time-group .slot-card-warning,
+  .time-group .slot-source-link {
+    grid-column: 1;
+  }
+
+  .time-group .slot-card-status-row {
+    justify-content: flex-start;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
