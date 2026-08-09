@@ -1162,6 +1162,35 @@ input:hover {
   list-style: none;
 }
 
+.date-summary-copy,
+.time-summary-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.date-group-overview,
+.time-group-overview {
+  display: block;
+  max-width: 70ch;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 680px) {
+  .date-group-overview,
+  .time-group-overview {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+  }
+}
+
 .disclosure-summary::-webkit-details-marker {
   display: none;
 }

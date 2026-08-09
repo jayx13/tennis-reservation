@@ -1,4 +1,4 @@
-import { buildAvailabilityHierarchy, isWeekendDate } from "./filters.js";
+import { buildAvailabilityHierarchy, formatCourtOverview, isWeekendDate } from "./filters.js";
 
 const els = {
   health: document.querySelector("#health"),
@@ -177,9 +177,12 @@ function render() {
     const header = document.createElement("summary");
     header.className = "date-group-header disclosure-summary";
     header.innerHTML = `
-      <div class="date-lockup">
-        <span class="date-group-day-name">${formatDayName(date)}</span>
-        <h3 class="date-group-date-label">${formatDateLabel(date)}</h3>
+      <div class="date-summary-copy">
+        <div class="date-lockup">
+          <span class="date-group-day-name">${formatDayName(date)}</span>
+          <h3 class="date-group-date-label">${formatDateLabel(date)}</h3>
+        </div>
+        <span class="date-group-overview">${escapeHtml(formatCourtOverview(dateGroup.timeGroups.flatMap((group) => group.facilities)))}</span>
       </div>
       <span class="date-group-count">${dateGroup.slotCount} available</span>
     `;
@@ -194,8 +197,11 @@ function render() {
       timeSection.setAttribute("aria-label", `${timeGroup.startTime} to ${timeGroup.endTime}`);
       timeSection.innerHTML = `
         <summary class="time-group-header disclosure-summary">
-          <div class="time-group-range">
-            <strong>${escapeHtml(timeGroup.startTime)}</strong><span>—</span><strong>${escapeHtml(timeGroup.endTime)}</strong>
+          <div class="time-summary-copy">
+            <div class="time-group-range">
+              <strong>${escapeHtml(timeGroup.startTime)}</strong><span>—</span><strong>${escapeHtml(timeGroup.endTime)}</strong>
+            </div>
+            <span class="time-group-overview">${escapeHtml(formatCourtOverview(timeGroup.facilities))}</span>
           </div>
           <span class="time-group-count">${timeGroup.slotCount} court${timeGroup.slotCount === 1 ? "" : "s"}</span>
         </summary>
