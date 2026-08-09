@@ -1,4 +1,4 @@
-import { isWeekendDate, toDisplaySlots } from "./filters.js";
+import { isWeekendDate, legacyCourtName, toDisplaySlots } from "./filters.js";
 
 const els = {
   health: document.querySelector("#health"),
@@ -205,7 +205,8 @@ function render() {
         ? `${escapeHtml(slot.distanceFromYokohamaStationKm)} km from Yokohama Station`
         : escapeHtml(slot.area || "Public facility");
       const actionLabel = slot.provider === "yokohama" ? "Open system" : "Reserve";
-      const court = slot.courtName ? `<small>${escapeHtml(slot.courtName)}</small>` : "";
+      const courtName = legacyCourtName(slot);
+      const court = courtName ? `<small>${escapeHtml(courtName)}</small>` : "";
       const roomNames = slot.roomNames?.length ? slot.roomNames.join(", ") : slot.roomName;
       const note = slot.linkNote ? `<p class="slot-card-warning">${escapeHtml(slot.linkNote)}</p>` : "";
       const sourceUrl = safeUrl(slot.sourceUrl);

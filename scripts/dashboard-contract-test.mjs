@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { isWeekendDate, toDisplaySlots } from "../public/filters.js";
+import * as dashboardFilters from "../public/filters.js";
+
+const { isWeekendDate, toDisplaySlots } = dashboardFilters;
 
 const [configText, html, app, css, localServer, workflow, readme, komaoka] = await Promise.all([
   readFile(new URL("../reservation.config.json", import.meta.url), "utf8"),
@@ -100,6 +102,26 @@ assert.deepEqual(grouped.map((slot) => slot.roomNames), [
 assert.equal(grouped.length, 3, "Komaoka matching display ranges render once");
 assert.notStrictEqual(grouped[0], displayInput[0], "display grouping does not mutate normalized slots");
 assert.deepEqual(displayInput.map((slot) => slot.roomNames), [undefined, undefined, undefined, undefined], "normalized slots stay unchanged");
+assert.equal(typeof dashboardFilters.legacyCourtName, "function", "legacy court display behavior is defined");
+assert.equal(dashboardFilters.legacyCourtName({
+  provider: "komaoka",
+  roomNames: ["Court A", "Court B"],
+  courtName: "Court A"
+}), "", "Komaoka grouped courts suppress the duplicate legacy label");
+assert.deepEqual([
+  ...grouped[0].roomNames,
+  dashboardFilters.legacyCourtName({ ...grouped[0], courtName: "Court A" })
+].filter(Boolean), ["Court A", "Court B"], "each grouped Komaoka court displays once");
+assert.equal(dashboardFilters.legacyCourtName({
+  provider: "yokohama",
+  roomNames: ["Main Gym", "Sub Gym"],
+  courtName: "Main Gym"
+}), "", "grouped rows suppress the duplicate legacy label");
+assert.equal(dashboardFilters.legacyCourtName({
+  provider: "yokohama",
+  roomNames: ["Main Gym"],
+  courtName: "Main Gym"
+}), "Main Gym", "ungrouped legacy rows retain their court label");
 
 const sortedCourts = toDisplaySlots([
   displaySlot("komaoka", "51", "Court C", "09:00", "11:00"),

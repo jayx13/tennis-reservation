@@ -28,6 +28,7 @@ const context = {
   year: 2026,
   month: 8
 };
+const expectedContext = { ...context, expectedWeekStart: "2026-08-09" };
 const parsed = parseKomaokaWeek(fixture, context);
 
 assert(parsed.some(slot => slot.date === "2026-08-09" && slot.startTime === "09:00"));
@@ -41,11 +42,24 @@ const numericEntities = fixture.replaceAll("体育室 A面", "&#x4F53;&#32946;&#
 assert(parseKomaokaWeek(numericEntities, context).some(slot => slot.date === "2026-08-09"));
 
 const unknownBlankState = fixture.replace("<td>&nbsp;</td>", '<td class="new-state">&nbsp;</td>');
-assert(!parseKomaokaWeek(unknownBlankState, context)
-  .some(slot => slot.date === "2026-08-09" && slot.startTime === "09:00"));
+assert.throws(() => parseKomaokaWeek(unknownBlankState, context), /Komaoka calendar structure/i);
+
+const unknownStyleState = fixture.replace("<td>&nbsp;</td>", '<td style="background-color:#ABCDEF">&nbsp;</td>');
+assert.throws(() => parseKomaokaWeek(unknownStyleState, context), /Komaoka calendar structure/i);
+
+const nestedMarkupState = fixture.replace("<td>&nbsp;</td>", '<td><img alt="×"></td>');
+assert.throws(() => parseKomaokaWeek(nestedMarkupState, context), /Komaoka calendar structure/i);
+
+const commentState = fixture.replace("<td>&nbsp;</td>", "<td><!-- unknown state --></td>");
+assert.throws(() => parseKomaokaWeek(commentState, context), /Komaoka calendar structure/i);
 const styledBlankState = fixture.replace("<td>&nbsp;</td>", '<td class="list" style="border:1px solid #CCCCCC; ">&nbsp;</td>');
 assert(parseKomaokaWeek(styledBlankState, context)
   .some(slot => slot.date === "2026-08-09" && slot.startTime === "09:00"));
+
+assert.throws(
+  () => parseKomaokaWeek(fixture, { ...expectedContext, expectedWeekStart: "2026-08-16" }),
+  /Komaoka calendar structure/i
+);
 
 assert.throws(
   () => parseKomaokaWeek(fixture, { ...context, roomId: "42", roomLabel: "Court B" }),
@@ -109,6 +123,20 @@ assert.deepEqual(
     { roomCode: "41", startTime: "12:00", endTime: "13:00" }
   ]
 );
+
+assert.deepEqual(
+  mergeConsecutiveKomaokaSlots([
+    slot("2026-08-09", "09:00", "10:00", "41"),
+    slot("2026-08-09", "09:00", "10:00", "41"),
+    slot("2026-08-09", "10:00", "11:00", "41")
+  ]).map(({ roomCode, startTime, endTime }) => ({ roomCode, startTime, endTime })),
+  [{ roomCode: "41", startTime: "09:00", endTime: "11:00" }]
+);
+
+assert.equal(mergeConsecutiveKomaokaSlots([
+  { ...slot("2026-08-09", "09:00", "10:00", "41"), facilityCode: "c12500", statusType: "AVAILABLE" },
+  { ...slot("2026-08-09", "10:00", "11:00", "41"), facilityCode: "c12500", statusType: "CLOSED" }
+]).length, 2);
 
 const testConfig = {
   baseUrl: "https://example.test/display.php",
@@ -198,6 +226,65 @@ await collectKomaokaAvailability({
 });
 assert.equal(retryCount, 2);
 
+let hangingFetchCount = 0;
+let hangingAbortCount = 0;
+let successfulRetrySignal;
+const unhandledRejections = [];
+const captureUnhandledRejection = reason => unhandledRejections.push(reason);
+process.on("unhandledRejection", captureUnhandledRejection);
+const timeoutRetried = await collectKomaokaAvailability({
+  ...collectorOptions,
+  config: { ...testConfig, timeoutMs: 10, rooms: [{ id: "41", label: "Court A" }] },
+  fetchImpl: async (url, { signal }) => {
+    hangingFetchCount += 1;
+    if (hangingFetchCount === 1) {
+      return new Promise((resolve, reject) => {
+        signal.addEventListener("abort", () => {
+          hangingAbortCount += 1;
+          const error = new Error("timed out");
+          error.name = "AbortError";
+          reject(error);
+        }, { once: true });
+      });
+    }
+    successfulRetrySignal = signal;
+    return response(fixtureForRoom("41"));
+  }
+});
+assert.equal(hangingFetchCount, 2);
+assert.equal(hangingAbortCount, 1);
+assert.equal(timeoutRetried.checks[0].ok, true);
+await new Promise(resolve => setTimeout(resolve, 25));
+assert.equal(successfulRetrySignal.aborted, false, "successful retry timeout is cleared");
+await new Promise(resolve => setImmediate(resolve));
+process.off("unhandledRejection", captureUnhandledRejection);
+assert.deepEqual(unhandledRejections, [], "aborted request rejection stays handled");
+
+let connectionFetchCount = 0;
+const connectionRetried = await collectKomaokaAvailability({
+  ...collectorOptions,
+  config: { ...testConfig, rooms: [{ id: "41", label: "Court A" }] },
+  fetchImpl: async () => {
+    connectionFetchCount += 1;
+    if (connectionFetchCount === 1) throw new TypeError("connection reset");
+    return response(fixtureForRoom("41"));
+  }
+});
+assert.equal(connectionFetchCount, 2);
+assert.equal(connectionRetried.checks[0].ok, true);
+
+let rateLimitedFetchCount = 0;
+const rateLimitedRetried = await collectKomaokaAvailability({
+  ...collectorOptions,
+  config: { ...testConfig, rooms: [{ id: "41", label: "Court A" }] },
+  fetchImpl: async () => response(
+    fixtureForRoom("41"),
+    rateLimitedFetchCount++ === 0 ? 429 : 200
+  )
+});
+assert.equal(rateLimitedFetchCount, 2);
+assert.equal(rateLimitedRetried.checks[0].ok, true);
+
 let notFoundCount = 0;
 const notFound = await collectKomaokaAvailability({
   ...collectorOptions,
@@ -220,6 +307,35 @@ const oneMalformed = await collectKomaokaAvailability({
 assert(oneMalformed.slots.length > 0);
 assert.equal(oneMalformed.checks.filter(check => check.ok).length, 2);
 assert.equal(oneMalformed.checks.filter(check => !check.ok).length, 1);
+
+const oneUnknownState = await collectKomaokaAvailability({
+  ...collectorOptions,
+  fetchImpl: async (url) => {
+    const roomId = new URL(url).searchParams.get("r");
+    const roomFixture = fixtureForRoom(roomId).toString("utf8");
+    return response(Buffer.from(roomId === "42"
+      ? roomFixture.replace("<td>&nbsp;</td>", '<td class="new-state">&nbsp;</td>')
+      : roomFixture));
+  }
+});
+assert(oneUnknownState.slots.length > 0);
+assert(!oneUnknownState.slots.some(slot => slot.roomCode === "42"));
+assert.equal(oneUnknownState.checks.find(check => check.roomCode === "42").ok, false);
+assert.equal(oneUnknownState.checks.filter(check => check.ok).length, 2);
+
+const wrongWeekFixture = fixture
+  .replace(
+    "<th>9</th><th>10</th><th>11</th><th>12</th><th>13</th><th>14</th><th>15</th>",
+    "<th>16</th><th>17</th><th>18</th><th>19</th><th>20</th><th>21</th><th>22</th>"
+  );
+const wrongWeek = await collectKomaokaAvailability({
+  ...collectorOptions,
+  config: { ...testConfig, rooms: [{ id: "41", label: "Court A" }] },
+  fetchImpl: async () => response(Buffer.from(wrongWeekFixture))
+});
+assert.deepEqual(wrongWeek.slots, []);
+assert.equal(wrongWeek.checks.length, 1);
+assert.equal(wrongWeek.checks[0].ok, false);
 
 const allFailed = await collectKomaokaAvailability({
   ...collectorOptions,

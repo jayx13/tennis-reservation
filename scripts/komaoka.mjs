@@ -141,12 +141,20 @@ function calendarDates(dayNumbers, year, month) {
 }
 
 function isAvailable(cell) {
+  if (/[<>]/.test(cell.content)) structureError();
+
   const attributeNames = Object.keys(cell.attributes);
   const hasOnlyKnownAttributes = attributeNames.every(name => ["rowspan", "class", "style"].includes(name));
   const hasKnownClass = cell.attributes.class === undefined || cell.attributes.class === "list";
   const hasKnownStyle = cell.attributes.style === undefined ||
-    /^border:1px solid #cccccc;$/i.test(cell.attributes.style);
-  return cell.text === "" && hasOnlyKnownAttributes && hasKnownClass && hasKnownStyle;
+    /^(?:border:1px solid #cccccc;|background-color:#(?:ffdddd|dddddd|ddffdd))$/i.test(cell.attributes.style);
+  if (!hasOnlyKnownAttributes || !hasKnownClass || !hasKnownStyle) structureError();
+
+  const rawContent = cell.content.trim();
+  const isKnownBlank = ["", "&nbsp;", "&#160;", "&#xa0;", "\u00a0"]
+    .some(blank => rawContent.toLowerCase() === blank);
+  const hasUnavailableStyle = /^background-color:/i.test(cell.attributes.style ?? "");
+  return isKnownBlank && !hasUnavailableStyle;
 }
 
 export function reservationEndDate(todayIso, months = 2) {
@@ -214,6 +222,18 @@ export function parseKomaokaWeek(html, context) {
     rows[1].some((cell, index) => cell.tag !== "td" || cell.text !== weekdays[index])
   ) structureError();
   const dates = calendarDates(dayNumbers, context.year, context.month);
+  if (dates.some((date, index) => {
+    const { year, month, day } = parseIsoDate(date);
+    return new Date(Date.UTC(year, month - 1, day)).getUTCDay() !== index;
+  })) structureError();
+  if (context.expectedWeekStart !== undefined) {
+    try {
+      parseIsoDate(context.expectedWeekStart);
+    } catch {
+      structureError();
+    }
+    if (dates[0] !== context.expectedWeekStart) structureError();
+  }
 
   const occupancy = Array(7).fill(null);
   const slots = [];
@@ -253,7 +273,19 @@ export function parseKomaokaWeek(html, context) {
 
 export function mergeConsecutiveKomaokaSlots(slots) {
   if (!Array.isArray(slots)) throw new TypeError("slots must be an array");
-  const ordered = [...slots].sort((left, right) =>
+  const unique = new Map();
+  for (const slot of slots) {
+    const identity = JSON.stringify([
+      slot.facilityCode ?? "",
+      slot.roomCode ?? "",
+      slot.date ?? "",
+      slot.startTime ?? "",
+      slot.endTime ?? "",
+      slot.statusType ?? slot.status ?? ""
+    ]);
+    if (!unique.has(identity)) unique.set(identity, slot);
+  }
+  const ordered = [...unique.values()].sort((left, right) =>
     left.date.localeCompare(right.date) ||
     left.startTime.localeCompare(right.startTime) ||
     left.endTime.localeCompare(right.endTime) ||
@@ -262,7 +294,12 @@ export function mergeConsecutiveKomaokaSlots(slots) {
   const merged = [];
   const latestByRoom = new Map();
   for (const slot of ordered) {
-    const key = `${slot.date}\u0000${slot.roomCode}`;
+    const key = JSON.stringify([
+      slot.facilityCode ?? "",
+      slot.roomCode ?? "",
+      slot.date ?? "",
+      slot.statusType ?? slot.status ?? ""
+    ]);
     const previous = latestByRoom.get(key);
     if (previous && previous.endTime === slot.startTime) {
       previous.endTime = slot.endTime;
@@ -368,7 +405,8 @@ export async function collectKomaokaAvailability({
           roomLabel: room.label,
           sourceUrl,
           year,
-          month
+          month,
+          expectedWeekStart: weekStart
         });
         const retrievedAt = now();
         const normalized = parsed

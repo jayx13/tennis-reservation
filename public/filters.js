@@ -6,6 +6,11 @@ export function isWeekendDate(value) {
   return weekday === 0 || weekday === 6;
 }
 
+export function legacyCourtName(slot) {
+  if (slot.provider === "komaoka" || slot.roomNames?.length > 1) return "";
+  return slot.courtName ?? "";
+}
+
 export function toDisplaySlots(slots) {
   const displaySlots = [];
   const komaokaIndexes = new Map();
