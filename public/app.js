@@ -170,6 +170,8 @@ function render() {
 
   const groupElements = buildAvailabilityHierarchy(slots).map((dateGroup) => {
     const { date } = dateGroup;
+    const dateFacilities = dateGroup.timeGroups.flatMap((group) => group.facilities);
+    const dateParkCount = new Set(dateFacilities.map((facility) => facility.facilityKey)).size;
     const section = document.createElement("details");
     section.className = "date-group date-disclosure";
     section.setAttribute("aria-label", `${formatDate(date)} availability`);
@@ -182,9 +184,9 @@ function render() {
           <span class="date-group-day-name">${formatDayName(date)}</span>
           <h3 class="date-group-date-label">${formatDateLabel(date)}</h3>
         </div>
-        <span class="date-group-overview">${escapeHtml(formatCourtOverview(dateGroup.timeGroups.flatMap((group) => group.facilities)))}</span>
+        <span class="date-group-overview">${escapeHtml(formatCourtOverview(dateFacilities))}</span>
       </div>
-      <span class="date-group-count">${dateGroup.slotCount} available</span>
+      <span class="date-group-count">${dateParkCount} park${dateParkCount === 1 ? "" : "s"}</span>
     `;
     section.appendChild(header);
 
@@ -193,6 +195,7 @@ function render() {
 
     for (const timeGroup of dateGroup.timeGroups) {
       const timeSection = document.createElement("details");
+      const timeParkCount = new Set(timeGroup.facilities.map((facility) => facility.facilityKey)).size;
       timeSection.className = "time-group time-disclosure";
       timeSection.setAttribute("aria-label", `${timeGroup.startTime} to ${timeGroup.endTime}`);
       timeSection.innerHTML = `
@@ -203,7 +206,7 @@ function render() {
             </div>
             <span class="time-group-overview">${escapeHtml(formatCourtOverview(timeGroup.facilities))}</span>
           </div>
-          <span class="time-group-count">${timeGroup.slotCount} court${timeGroup.slotCount === 1 ? "" : "s"}</span>
+          <span class="time-group-count">${timeParkCount} park${timeParkCount === 1 ? "" : "s"}</span>
         </summary>
       `;
       const facilityList = document.createElement("div");

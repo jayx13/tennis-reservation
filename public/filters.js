@@ -109,7 +109,7 @@ export function buildAvailabilityHierarchy(slots) {
     }));
 }
 
-export function formatCourtOverview(facilities, maxGroups = 3) {
+export function formatCourtOverview(facilities) {
   const grouped = new Map();
   for (const facility of facilities) {
     const key = facility.facilityKey || `${facility.provider || "official"}|${facility.facilityCode ?? facility.facilityName}`;
@@ -123,7 +123,5 @@ export function formatCourtOverview(facilities, maxGroups = 3) {
   const groups = [...grouped.values()]
     .sort((a, b) => naturalCollator.compare(a.name, b.name))
     .map((group) => `${group.name}: ${[...group.courts].sort(naturalCollator.compare).join(", ")}`);
-  const visible = groups.slice(0, maxGroups);
-  const remaining = groups.length - visible.length;
-  return remaining > 0 ? `${visible.join(" · ")} · +${remaining} more` : visible.join(" · ");
+  return groups.join(" · ");
 }
