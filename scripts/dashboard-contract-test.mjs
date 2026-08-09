@@ -128,4 +128,6 @@ assert.match(readme, /Komaoka Community Center/, "Komaoka documented");
 assert.match(readme, /045-571-0035/, "Komaoka phone documented");
 assert.match(readme, /manually updated/i, "manual freshness caveat documented");
 assert.match(readme, /nine Yokohama venues/i, "basketball venue count documented");
+assert.match(readme, /from today through the corresponding date two months later/i, "rolling Komaoka horizon documented");
+assert.match(readme, /clamped to the last day of a shorter target month/i, "Komaoka month-end horizon documented");
 console.log("Dashboard contract passed.");
