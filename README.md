@@ -2,7 +2,13 @@
 
 A lightweight scraper and web dashboard for tennis availability in **Kanagawa Prefecture** and **Yokohama City**, plus nearby basketball courts from the **Yokohama City reservation system**.
 
-Tennis and basketball appear on separate tabs. Basketball checks eight Yokohama venues: Tsurumi, Kanagawa, Nishi, Naka, Minami, Konan, and Hodogaya Sports Centers, plus Hiranuma Memorial Gymnasium.
+Tennis and basketball appear on separate tabs. Basketball checks nine Yokohama venues: Tsurumi, Kanagawa, Nishi, Naka, Minami, Konan, and Hodogaya Sports Centers, Hiranuma Memorial Gymnasium, and Komaoka Community Center.
+
+### Komaoka basketball availability
+
+Komaoka Community Center uses a separate, manually updated Yokohama City calendar source rather than the reservation-system feed used by the other basketball venues. The collector checks the current month and the following two calendar months, and treats only a blank calendar entry as available; booked, closed, and individual-use entries are not shown as slots.
+
+Komaoka booking is by phone or in person at **045-571-0035**. Calendar information can lag behind the facility, so call to confirm availability and freshness before visiting or booking.
 
 ---
 

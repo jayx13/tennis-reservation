@@ -124,4 +124,8 @@ assert.match(workflow, /cron:\s*["']0 \* \* \* \*["']/, "hourly GitHub Actions r
 assert.match(html, /<strong>1h<\/strong>/, "hourly UI metric");
 assert.doesNotMatch(readme, /every 2 hours/i, "hourly README copy");
 
+assert.match(readme, /Komaoka Community Center/, "Komaoka documented");
+assert.match(readme, /045-571-0035/, "Komaoka phone documented");
+assert.match(readme, /manually updated/i, "manual freshness caveat documented");
+assert.match(readme, /nine Yokohama venues/i, "basketball venue count documented");
 console.log("Dashboard contract passed.");
