@@ -1,4 +1,9 @@
 const STRUCTURE_ERROR = "Komaoka calendar structure is invalid";
+const KOMAOKA_ROOMS = new Map([
+  ["41", { label: "Court A", sourceHeading: "体育室 A面(1/3)" }],
+  ["42", { label: "Court B", sourceHeading: "体育室 B面(2/3)" }],
+  ["43", { label: "Court C", sourceHeading: "体育室 C面(3/3)" }]
+]);
 
 function structureError() {
   throw new Error(STRUCTURE_ERROR);
@@ -57,7 +62,11 @@ function decodeEntities(value) {
     if (lower === "quot") return '"';
     if (lower === "apos") return "'";
     const codePoint = lower.startsWith("#x") ? Number.parseInt(lower.slice(2), 16) : Number.parseInt(lower.slice(1), 10);
-    return Number.isValidCodePoint(codePoint) ? String.fromCodePoint(codePoint) : entity;
+    const isUnicodeScalar = Number.isInteger(codePoint) &&
+      codePoint >= 0 &&
+      codePoint <= 0x10ffff &&
+      (codePoint < 0xd800 || codePoint > 0xdfff);
+    return isUnicodeScalar ? String.fromCodePoint(codePoint) : entity;
   });
 }
 
@@ -116,26 +125,26 @@ function parseTimeRange(label) {
 }
 
 function calendarDates(dayNumbers, year, month) {
-  let currentYear = year;
-  let currentMonth = month;
-  let previousDay = null;
+  let current = null;
   return dayNumbers.map(day => {
-    if (previousDay !== null && day < previousDay) {
-      currentMonth += 1;
-      if (currentMonth === 13) {
-        currentYear += 1;
-        currentMonth = 1;
-      }
+    if (current === null) {
+      if (day > daysInMonth(year, month)) structureError();
+      current = new Date(Date.UTC(year, month - 1, day));
+    } else {
+      const next = new Date(current);
+      next.setUTCDate(next.getUTCDate() + 1);
+      if (next.getUTCDate() !== day) structureError();
+      current = next;
     }
-    if (day > daysInMonth(currentYear, currentMonth)) structureError();
-    previousDay = day;
-    return formatIsoDate(currentYear, currentMonth, day);
+    return formatIsoDate(current.getUTCFullYear(), current.getUTCMonth() + 1, current.getUTCDate());
   });
 }
 
 function isAvailable(cell) {
-  const marker = `${cell.text} ${cell.attributes.class ?? ""} ${cell.attributes.style ?? ""}`;
-  return cell.text === "" && !/(?:×|予約|閉館|休館|個人利用|利用不可|#ffdddd|#dddddd|#ddffdd)/i.test(marker);
+  const attributeNames = Object.keys(cell.attributes);
+  const hasOnlyKnownAttributes = attributeNames.length === 0 ||
+    (attributeNames.length === 1 && attributeNames[0] === "rowspan");
+  return cell.text === "" && hasOnlyKnownAttributes;
 }
 
 export function reservationEndDate(todayIso, months = 2) {
@@ -180,9 +189,15 @@ export function parseKomaokaWeek(html, context) {
     structureError();
   }
   const roomHeading = roomCell.text;
+  const expectedRoom = KOMAOKA_ROOMS.get(context.roomId);
   const hasRoomStatusHeading = [...html.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2\s*>/gi)]
     .some(match => stripTags(match[1]) === `${roomHeading}予約状況`);
-  if (!roomHeading || !hasRoomStatusHeading) structureError();
+  if (
+    !expectedRoom ||
+    context.roomLabel !== expectedRoom.label ||
+    roomHeading !== expectedRoom.sourceHeading ||
+    !hasRoomStatusHeading
+  ) structureError();
 
   const dayNumbers = dayCells.map(cell => {
     if (!/^\d{1,2}$/.test(cell.text)) structureError();
