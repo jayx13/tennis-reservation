@@ -1,4 +1,4 @@
-import { buildAvailabilityHierarchy, formatCourtOverview, isWeekendDate } from "./filters.js";
+import { buildAvailabilityHierarchy, formatParkOverview, isWeekendDate } from "./filters.js";
 
 const els = {
   health: document.querySelector("#health"),
@@ -184,7 +184,7 @@ function render() {
           <span class="date-group-day-name">${formatDayName(date)}</span>
           <h3 class="date-group-date-label">${formatDateLabel(date)}</h3>
         </div>
-        <span class="date-group-overview">${escapeHtml(formatCourtOverview(dateFacilities))}</span>
+        <span class="date-group-overview">${escapeHtml(formatParkOverview(dateFacilities))}</span>
       </div>
       <span class="date-group-count">${dateParkCount} park${dateParkCount === 1 ? "" : "s"}</span>
     `;
@@ -204,7 +204,7 @@ function render() {
             <div class="time-group-range">
               <strong>${escapeHtml(timeGroup.startTime)}</strong><span>—</span><strong>${escapeHtml(timeGroup.endTime)}</strong>
             </div>
-            <span class="time-group-overview">${escapeHtml(formatCourtOverview(timeGroup.facilities))}</span>
+            <span class="time-group-overview">${escapeHtml(formatParkOverview(timeGroup.facilities))}</span>
           </div>
           <span class="time-group-count">${timeParkCount} park${timeParkCount === 1 ? "" : "s"}</span>
         </summary>
