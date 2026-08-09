@@ -719,6 +719,8 @@ input:hover {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 44px;
+  padding: 0 10px;
   margin-top: -8px;
   color: var(--cyan);
   font-size: 0.67rem;
@@ -952,12 +954,17 @@ input:hover {
   }
 
   .slot-card-komaoka {
-    grid-template-columns: 76px minmax(0, 1fr);
+    grid-template-columns: 1fr;
   }
 
   .slot-card-komaoka .slot-card-status-row {
     grid-column: 1 / -1;
     justify-content: space-between;
+  }
+
+  .slot-card-komaoka .slot-card-warning,
+  .slot-card-komaoka .slot-source-link {
+    grid-column: 1 / -1;
   }
 
   .slot-card-komaoka .slot-card-courts {

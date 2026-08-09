@@ -51,7 +51,7 @@ assert.doesNotMatch(app, /localStorage|data-theme|themeToggle/, "theme switching
 assert.match(app, /bookingMethod\s*===\s*["']phone["']/, "phone booking branch");
 assert.match(app, /tel:\$\{slot\.bookingPhone\.replace\(\/\\D\/g,\s*["']{2}\)\}/, "telephone URL generation");
 assert.match(app, /Phone booking/, "phone booking badge");
-assert.match(komaoka, /Call to reserve; availability is manually updated\./, "manual-update warning");
+assert.match(komaoka, /Availability is manually updated by the facility\. Call to confirm\./, "manual-update warning");
 assert.match(app, /Source calendar/, "Komaoka source calendar link");
 assert.match(app, /sourceUrl/, "source calendar metadata");
 
@@ -69,6 +69,8 @@ assert.match(css, /\.slot-card-courts/, "Komaoka court grouping styling");
 assert.match(css, /\.reserve-btn-phone/, "phone booking CTA styling");
 assert.match(css, /\.slot-source-link/, "source calendar link styling");
 assert.match(css, /\.slot-card-warning/, "manual-update warning styling");
+assert.match(css, /\.slot-source-link\s*\{[\s\S]*?min-height:\s*44px;/, "source calendar tap target");
+assert.match(css, /@media\s*\(max-width:\s*680px\)\s*\{[\s\S]*?\.slot-card-komaoka\s*\{[\s\S]*?grid-template-columns:\s*1fr;/, "Komaoka mobile card stacks");
 
 function displaySlot(provider, roomCode, roomName, startTime, endTime) {
   return {

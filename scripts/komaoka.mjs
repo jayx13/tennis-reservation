@@ -390,7 +390,7 @@ export async function collectKomaokaAvailability({
             sourceUrl,
             sourceRetrievedAt: retrievedAt,
             link: null,
-            linkNote: "Call to reserve; availability is manually updated."
+            linkNote: "Availability is manually updated by the facility. Call to confirm."
           }));
         slots.push(...normalized);
         facilitiesSeen.add(`komaoka:${config.facilityCode}`);
