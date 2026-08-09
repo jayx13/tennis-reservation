@@ -1,4 +1,4 @@
-import { isWeekendDate } from "./filters.js";
+import { isWeekendDate, toDisplaySlots } from "./filters.js";
 
 const els = {
   health: document.querySelector("#health"),
@@ -43,10 +43,10 @@ const sportMeta = {
     index: "02",
     eyebrow: "Yokohama public gyms · live availability",
     title: "Game time starts here.",
-    description: "Open basketball gym slots across eight Yokohama facilities, refreshed from the official city reservation service.",
-    source: "Yokohama system",
+    description: "Open basketball gym slots across nine tracked facilities, including Komaoka Community Center phone booking, refreshed from official city reservation services.",
+    source: "Yokohama system + Komaoka",
     resultsTitle: "Open basketball gyms",
-    facilityCount: 8,
+    facilityCount: 9,
     facilityLabel: "Gyms tracked"
   }
 };
@@ -197,15 +197,24 @@ function render() {
     const slotsGrid = document.createElement("div");
     slotsGrid.className = "date-group-slots";
 
-    for (const slot of dateSlots) {
+    for (const slot of toDisplaySlots(dateSlots)) {
       const card = document.createElement("article");
-      card.className = "slot-card";
+      const isPhoneBooking = slot.bookingMethod === "phone" && slot.bookingPhone;
+      card.className = isPhoneBooking ? "slot-card slot-card-komaoka" : "slot-card";
       const distance = slot.distanceFromYokohamaStationKm != null
         ? `${escapeHtml(slot.distanceFromYokohamaStationKm)} km from Yokohama Station`
         : escapeHtml(slot.area || "Public facility");
       const actionLabel = slot.provider === "yokohama" ? "Open system" : "Reserve";
       const court = slot.courtName ? `<small>${escapeHtml(slot.courtName)}</small>` : "";
-      const note = slot.linkNote ? `<p class="slot-card-note">${escapeHtml(slot.linkNote)}</p>` : "";
+      const roomNames = slot.roomNames?.length ? slot.roomNames.join(", ") : slot.roomName;
+      const note = slot.linkNote ? `<p class="slot-card-warning">${escapeHtml(slot.linkNote)}</p>` : "";
+      const sourceUrl = safeUrl(slot.sourceUrl);
+      const sourceLink = sourceUrl !== "#"
+        ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer" class="slot-source-link">Source calendar<span aria-hidden="true">↗</span></a>`
+        : "";
+      const action = isPhoneBooking
+        ? `<a href="tel:${slot.bookingPhone.replace(/\D/g, "")}" class="reserve-btn reserve-btn-phone">Call Komaoka · ${escapeHtml(slot.bookingPhone)}</a>`
+        : `<a href="${escapeHtml(safeUrl(slot.link))}" target="_blank" rel="noopener noreferrer" class="reserve-btn">${actionLabel}<span aria-hidden="true">↗</span></a>`;
 
       card.innerHTML = `
         <div class="slot-card-time">
@@ -214,7 +223,7 @@ function render() {
         </div>
         <div class="slot-card-court">
           <span class="slot-card-facility">${escapeHtml(slot.facilityName)}</span>
-          <strong>${escapeHtml(slot.roomName)}</strong>
+          <strong class="slot-card-courts">${escapeHtml(roomNames)}</strong>
           ${court}
         </div>
         <div class="slot-card-meta">
@@ -223,11 +232,11 @@ function render() {
         </div>
         <div class="slot-card-status-row">
           <span class="status"><i aria-hidden="true"></i>${escapeHtml(slot.statusLabel)}</span>
-          <a href="${escapeHtml(safeUrl(slot.link))}" target="_blank" rel="noopener noreferrer" class="reserve-btn">
-            ${actionLabel}<span aria-hidden="true">↗</span>
-          </a>
+          ${isPhoneBooking ? '<span class="booking-badge-phone">Phone booking</span>' : ""}
+          ${action}
         </div>
         ${note}
+        ${sourceLink}
       `;
       slotsGrid.appendChild(card);
     }
