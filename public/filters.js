@@ -44,3 +44,67 @@ export function toDisplaySlots(slots) {
 
   return displaySlots;
 }
+
+const naturalCollator = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
+
+function availableCourtLabel(slot) {
+  const courtName = String(slot.courtName || "").trim();
+  const roomName = String(slot.roomName || "").trim();
+  return courtName || roomName || "Available space";
+}
+
+export function buildAvailabilityHierarchy(slots) {
+  const dates = new Map();
+
+  for (const slot of slots) {
+    let dateGroup = dates.get(slot.date);
+    if (!dateGroup) {
+      dateGroup = { date: slot.date, slotCount: 0, times: new Map() };
+      dates.set(slot.date, dateGroup);
+    }
+    dateGroup.slotCount += 1;
+
+    const timeKey = `${slot.startTime}|${slot.endTime}`;
+    let timeGroup = dateGroup.times.get(timeKey);
+    if (!timeGroup) {
+      timeGroup = {
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        slotCount: 0,
+        facilities: new Map()
+      };
+      dateGroup.times.set(timeKey, timeGroup);
+    }
+    timeGroup.slotCount += 1;
+
+    const facilityKey = `${slot.provider || "official"}|${slot.facilityCode ?? slot.facilityName}`;
+    let facility = timeGroup.facilities.get(facilityKey);
+    if (!facility) {
+      facility = { ...slot, facilityKey, slotCount: 0, courtNames: [] };
+      timeGroup.facilities.set(facilityKey, facility);
+    }
+    facility.slotCount += 1;
+    const label = availableCourtLabel(slot);
+    if (!facility.courtNames.includes(label)) facility.courtNames.push(label);
+  }
+
+  return [...dates.values()]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((dateGroup) => ({
+      date: dateGroup.date,
+      slotCount: dateGroup.slotCount,
+      timeGroups: [...dateGroup.times.values()]
+        .sort((a, b) => `${a.startTime}|${a.endTime}`.localeCompare(`${b.startTime}|${b.endTime}`))
+        .map((timeGroup) => ({
+          startTime: timeGroup.startTime,
+          endTime: timeGroup.endTime,
+          slotCount: timeGroup.slotCount,
+          facilities: [...timeGroup.facilities.values()]
+            .map((facility) => ({
+              ...facility,
+              courtNames: [...facility.courtNames].sort(naturalCollator.compare)
+            }))
+            .sort((a, b) => naturalCollator.compare(a.facilityName || "", b.facilityName || ""))
+        }))
+    }));
+}

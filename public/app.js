@@ -1,4 +1,4 @@
-import { isWeekendDate, legacyCourtName, toDisplaySlots } from "./filters.js";
+import { buildAvailabilityHierarchy, isWeekendDate } from "./filters.js";
 
 const els = {
   health: document.querySelector("#health"),
@@ -139,16 +139,6 @@ function renderDateOptions() {
   els.dateFilter.value = dates.includes(previousDate) ? previousDate : "";
 }
 
-function groupSlotsByDate(slots) {
-  const groups = new Map();
-  for (const slot of slots) {
-    const dateSlots = groups.get(slot.date) || [];
-    dateSlots.push(slot);
-    groups.set(slot.date, dateSlots);
-  }
-  return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-}
-
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -178,7 +168,8 @@ function render() {
     return;
   }
 
-  const groupElements = groupSlotsByDate(slots).map(([date, dateSlots]) => {
+  const groupElements = buildAvailabilityHierarchy(slots).map((dateGroup) => {
+    const { date } = dateGroup;
     const section = document.createElement("section");
     section.className = "date-group";
     section.setAttribute("aria-label", `${formatDate(date)} availability`);
@@ -190,14 +181,29 @@ function render() {
         <span class="date-group-day-name">${formatDayName(date)}</span>
         <h3 class="date-group-date-label">${formatDateLabel(date)}</h3>
       </div>
-      <span class="date-group-count">${dateSlots.length} available</span>
+      <span class="date-group-count">${dateGroup.slotCount} available</span>
     `;
     section.appendChild(header);
 
-    const slotsGrid = document.createElement("div");
-    slotsGrid.className = "date-group-slots";
+    const timeline = document.createElement("div");
+    timeline.className = "availability-timeline";
 
-    for (const slot of toDisplaySlots(dateSlots)) {
+    for (const timeGroup of dateGroup.timeGroups) {
+      const timeSection = document.createElement("section");
+      timeSection.className = "time-group";
+      timeSection.setAttribute("aria-label", `${timeGroup.startTime} to ${timeGroup.endTime}`);
+      timeSection.innerHTML = `
+        <div class="time-group-header">
+          <div class="time-group-range">
+            <strong>${escapeHtml(timeGroup.startTime)}</strong><span>—</span><strong>${escapeHtml(timeGroup.endTime)}</strong>
+          </div>
+          <span class="time-group-count">${timeGroup.slotCount} court${timeGroup.slotCount === 1 ? "" : "s"}</span>
+        </div>
+      `;
+      const facilityList = document.createElement("div");
+      facilityList.className = "time-group-facilities";
+
+      for (const slot of timeGroup.facilities) {
       const card = document.createElement("article");
       const isPhoneBooking = slot.bookingMethod === "phone" && slot.bookingPhone;
       card.className = isPhoneBooking ? "slot-card slot-card-komaoka" : "slot-card";
@@ -205,9 +211,6 @@ function render() {
         ? `${escapeHtml(slot.distanceFromYokohamaStationKm)} km from Yokohama Station`
         : escapeHtml(slot.area || "Public facility");
       const actionLabel = slot.provider === "yokohama" ? "Open system" : "Reserve";
-      const courtName = legacyCourtName(slot);
-      const court = courtName ? `<small>${escapeHtml(courtName)}</small>` : "";
-      const roomNames = slot.roomNames?.length ? slot.roomNames.join(", ") : slot.roomName;
       const note = slot.linkNote ? `<p class="slot-card-warning">${escapeHtml(slot.linkNote)}</p>` : "";
       const sourceUrl = safeUrl(slot.sourceUrl);
       const sourceLink = sourceUrl !== "#"
@@ -218,14 +221,11 @@ function render() {
         : `<a href="${escapeHtml(safeUrl(slot.link))}" target="_blank" rel="noopener noreferrer" class="reserve-btn">${actionLabel}<span aria-hidden="true">↗</span></a>`;
 
       card.innerHTML = `
-        <div class="slot-card-time">
-          <strong>${escapeHtml(slot.startTime)}</strong>
-          <span>to ${escapeHtml(slot.endTime)}</span>
-        </div>
-        <div class="slot-card-court">
+        <div class="facility-availability-main">
           <span class="slot-card-facility">${escapeHtml(slot.facilityName)}</span>
-          <strong class="slot-card-courts">${escapeHtml(roomNames)}</strong>
-          ${court}
+          <div class="facility-courts" aria-label="Available courts">
+            ${slot.courtNames.map((court) => `<span class="court-pill">${escapeHtml(court)}</span>`).join("")}
+          </div>
         </div>
         <div class="slot-card-meta">
           <span>${distance}</span>
@@ -239,10 +239,13 @@ function render() {
         ${note}
         ${sourceLink}
       `;
-      slotsGrid.appendChild(card);
+        facilityList.appendChild(card);
+      }
+      timeSection.appendChild(facilityList);
+      timeline.appendChild(timeSection);
     }
 
-    section.appendChild(slotsGrid);
+    section.appendChild(timeline);
     return section;
   });
 
