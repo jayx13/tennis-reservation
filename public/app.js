@@ -170,12 +170,12 @@ function render() {
 
   const groupElements = buildAvailabilityHierarchy(slots).map((dateGroup) => {
     const { date } = dateGroup;
-    const section = document.createElement("section");
-    section.className = "date-group";
+    const section = document.createElement("details");
+    section.className = "date-group date-disclosure";
     section.setAttribute("aria-label", `${formatDate(date)} availability`);
 
-    const header = document.createElement("div");
-    header.className = "date-group-header";
+    const header = document.createElement("summary");
+    header.className = "date-group-header disclosure-summary";
     header.innerHTML = `
       <div class="date-lockup">
         <span class="date-group-day-name">${formatDayName(date)}</span>
@@ -189,16 +189,16 @@ function render() {
     timeline.className = "availability-timeline";
 
     for (const timeGroup of dateGroup.timeGroups) {
-      const timeSection = document.createElement("section");
-      timeSection.className = "time-group";
+      const timeSection = document.createElement("details");
+      timeSection.className = "time-group time-disclosure";
       timeSection.setAttribute("aria-label", `${timeGroup.startTime} to ${timeGroup.endTime}`);
       timeSection.innerHTML = `
-        <div class="time-group-header">
+        <summary class="time-group-header disclosure-summary">
           <div class="time-group-range">
             <strong>${escapeHtml(timeGroup.startTime)}</strong><span>—</span><strong>${escapeHtml(timeGroup.endTime)}</strong>
           </div>
           <span class="time-group-count">${timeGroup.slotCount} court${timeGroup.slotCount === 1 ? "" : "s"}</span>
-        </div>
+        </summary>
       `;
       const facilityList = document.createElement("div");
       facilityList.className = "time-group-facilities";
