@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
+  collectKomaokaAvailability,
   decodeKomaokaHtml,
   mergeConsecutiveKomaokaSlots,
   parseKomaokaWeek,
@@ -30,6 +31,8 @@ const context = {
 const parsed = parseKomaokaWeek(fixture, context);
 
 assert(parsed.some(slot => slot.date === "2026-08-09" && slot.startTime === "09:00"));
+assert(parseKomaokaWeek(fixture.replace('rowspan="2"', 'rowspan=" 2 "'), context)
+  .some(slot => slot.date === "2026-08-09" && slot.startTime === "09:00"));
 assert(!parsed.some(slot => slot.date === "2026-08-10" && slot.startTime === "09:00"));
 assert(!parsed.some(slot => slot.date === "2026-08-11"));
 assert(!parsed.some(slot => slot.date === "2026-08-13" && slot.startTime === "09:00"));
@@ -40,14 +43,17 @@ assert(parseKomaokaWeek(numericEntities, context).some(slot => slot.date === "20
 const unknownBlankState = fixture.replace("<td>&nbsp;</td>", '<td class="new-state">&nbsp;</td>');
 assert(!parseKomaokaWeek(unknownBlankState, context)
   .some(slot => slot.date === "2026-08-09" && slot.startTime === "09:00"));
+const styledBlankState = fixture.replace("<td>&nbsp;</td>", '<td class="list" style="border:1px solid #CCCCCC; ">&nbsp;</td>');
+assert(parseKomaokaWeek(styledBlankState, context)
+  .some(slot => slot.date === "2026-08-09" && slot.startTime === "09:00"));
 
 assert.throws(
   () => parseKomaokaWeek(fixture, { ...context, roomId: "42", roomLabel: "Court B" }),
   /Komaoka calendar structure/i
 );
 for (const [roomId, roomLabel, sourceHeading] of [
-  ["42", "Court B", "体育室 B面(2/3)"],
-  ["43", "Court C", "体育室 C面(3/3)"]
+  ["42", "Court B", "体育室 B面(1/3)"],
+  ["43", "Court C", "体育室 C面(1/3)"]
 ]) {
   const courtFixture = fixture.replaceAll("体育室 A面(1/3)", sourceHeading);
   assert(parseKomaokaWeek(courtFixture, { ...context, roomId, roomLabel })
@@ -103,5 +109,124 @@ assert.deepEqual(
     { roomCode: "41", startTime: "12:00", endTime: "13:00" }
   ]
 );
+
+const testConfig = {
+  baseUrl: "https://example.test/display.php",
+  facilityCode: "c12500",
+  facilityName: "Komaoka Community Center",
+  sport: "basketball",
+  purpose: "Basketball",
+  phone: "045-571-0035",
+  horizonMonths: 0,
+  timeoutMs: 15_000,
+  retryDelayMs: 0,
+  retries: 1,
+  concurrency: 3,
+  rooms: [
+    { id: "41", label: "Court A" },
+    { id: "42", label: "Court B" },
+    { id: "43", label: "Court C" }
+  ]
+};
+
+function response(bytes, status = 200) {
+  return {
+    status,
+    ok: status >= 200 && status < 300,
+    arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+  };
+}
+
+function fixtureForRoom(roomId) {
+  const sourceHeading = {
+    "41": "体育室 A面(1/3)",
+    "42": "体育室 B面(1/3)",
+    "43": "体育室 C面(1/3)"
+  }[roomId];
+  return Buffer.from(fixture.replaceAll("体育室 A面(1/3)", sourceHeading));
+}
+
+const successfulFixtureFetch = async (url) => {
+  const requestUrl = new URL(url);
+  return response(fixtureForRoom(requestUrl.searchParams.get("r")));
+};
+
+const collectorOptions = {
+  config: testConfig,
+  today: "2026-08-09",
+  fetchImpl: successfulFixtureFetch,
+  sleepImpl: async () => {},
+  decodeImpl: bytes => Buffer.from(bytes).toString("utf8"),
+  now: () => "2026-08-09T10:00:00.000Z"
+};
+
+const collected = await collectKomaokaAvailability(collectorOptions);
+assert.equal(collected.checks.length, 3);
+assert(collected.slots.every(slot => slot.sport === "basketball"));
+assert(collected.slots.every(slot => slot.provider === "komaoka"));
+assert(collected.slots.every(slot => slot.bookingMethod === "phone"));
+assert(collected.slots.every(slot => slot.bookingPhone === "045-571-0035"));
+assert(collected.slots.every(slot => slot.sourceRetrievedAt === "2026-08-09T10:00:00.000Z"));
+assert(collected.slots.every(slot => new URL(slot.sourceUrl).searchParams.get("r") === slot.roomCode));
+assert.deepEqual([...collected.facilitiesSeen], ["komaoka:c12500"]);
+assert.deepEqual([...collected.roomsSeen].sort(), [
+  "komaoka:c12500:41",
+  "komaoka:c12500:42",
+  "komaoka:c12500:43"
+]);
+
+let activeRequests = 0;
+let maxActiveRequests = 0;
+await collectKomaokaAvailability({
+  ...collectorOptions,
+  config: { ...testConfig, horizonMonths: 1, concurrency: 99 },
+  fetchImpl: async (url) => {
+    activeRequests += 1;
+    maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+    await new Promise(resolve => setTimeout(resolve, 5));
+    activeRequests -= 1;
+    return successfulFixtureFetch(url);
+  }
+});
+assert(maxActiveRequests <= 3);
+
+let retryCount = 0;
+await collectKomaokaAvailability({
+  ...collectorOptions,
+  config: { ...testConfig, rooms: [{ id: "41", label: "Court A" }] },
+  fetchImpl: async (url) => response(fixtureForRoom("41"), retryCount++ === 0 ? 500 : 200)
+});
+assert.equal(retryCount, 2);
+
+let notFoundCount = 0;
+const notFound = await collectKomaokaAvailability({
+  ...collectorOptions,
+  config: { ...testConfig, rooms: [{ id: "41", label: "Court A" }] },
+  fetchImpl: async () => {
+    notFoundCount += 1;
+    return response(Buffer.from("not found"), 404);
+  }
+});
+assert.equal(notFoundCount, 1);
+assert.equal(notFound.checks[0].ok, false);
+
+const oneMalformed = await collectKomaokaAvailability({
+  ...collectorOptions,
+  fetchImpl: async (url) => {
+    const roomId = new URL(url).searchParams.get("r");
+    return response(roomId === "42" ? Buffer.from("malformed") : fixtureForRoom(roomId));
+  }
+});
+assert(oneMalformed.slots.length > 0);
+assert.equal(oneMalformed.checks.filter(check => check.ok).length, 2);
+assert.equal(oneMalformed.checks.filter(check => !check.ok).length, 1);
+
+const allFailed = await collectKomaokaAvailability({
+  ...collectorOptions,
+  fetchImpl: async () => response(Buffer.from("malformed"))
+});
+assert.deepEqual(allFailed.slots, []);
+assert.equal(allFailed.checks.length, 3);
+assert(allFailed.checks.every(check => !check.ok));
 
 console.log("Komaoka tests passed.");

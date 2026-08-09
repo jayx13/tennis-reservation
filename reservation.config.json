@@ -53,6 +53,24 @@
     "L01",
     "L02"
   ],
+  "komaoka": {
+    "baseUrl": "https://cgi.city.yokohama.lg.jp/shimin/chikucenter/display.php",
+    "facilityCode": "c12500",
+    "facilityName": "Komaoka Community Center",
+    "sport": "basketball",
+    "purpose": "Basketball",
+    "phone": "045-571-0035",
+    "horizonMonths": 2,
+    "timeoutMs": 15000,
+    "retryDelayMs": 500,
+    "retries": 1,
+    "concurrency": 3,
+    "rooms": [
+      { "id": "41", "label": "Court A" },
+      { "id": "42", "label": "Court B" },
+      { "id": "43", "label": "Court C" }
+    ]
+  },
   "yokohama": {
     "baseUrl": "https://www.shisetsu.city.yokohama.lg.jp/user/",
     "facilities": [

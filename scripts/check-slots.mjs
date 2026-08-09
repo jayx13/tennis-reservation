@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { collectKomaokaAvailability } from "./komaoka.mjs";
 
 const root = process.cwd();
 const config = JSON.parse(await readFile(path.join(root, "reservation.config.json"), "utf8"));
@@ -616,6 +617,18 @@ async function run() {
   }
   for (const facility of yokohama.facilitiesSeen) facilitiesSeen.add(facility);
   for (const room of yokohama.roomsSeen) roomsSeen.add(room);
+
+  const komaoka = await collectKomaokaAvailability({
+    config: config.komaoka,
+    today: jstToday()
+  });
+  slots.push(...komaoka.slots);
+  checks.push(...komaoka.checks);
+  for (const [status, count] of Object.entries(komaoka.statusCounts)) {
+    statusCounts[status] = (statusCounts[status] || 0) + count;
+  }
+  for (const facility of komaoka.facilitiesSeen) facilitiesSeen.add(facility);
+  for (const room of komaoka.roomsSeen) roomsSeen.add(room);
 
   const uniqueSlots = [];
   const slotKeys = new Set();

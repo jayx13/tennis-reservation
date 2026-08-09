@@ -1,8 +1,8 @@
 const STRUCTURE_ERROR = "Komaoka calendar structure is invalid";
 const KOMAOKA_ROOMS = new Map([
   ["41", { label: "Court A", sourceHeading: "体育室 A面(1/3)" }],
-  ["42", { label: "Court B", sourceHeading: "体育室 B面(2/3)" }],
-  ["43", { label: "Court C", sourceHeading: "体育室 C面(3/3)" }]
+  ["42", { label: "Court B", sourceHeading: "体育室 B面(1/3)" }],
+  ["43", { label: "Court C", sourceHeading: "体育室 C面(1/3)" }]
 ]);
 
 function structureError() {
@@ -77,7 +77,7 @@ function stripTags(value) {
 function parseAttributes(value) {
   const attributes = {};
   for (const match of value.matchAll(/([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g)) {
-    attributes[match[1].toLowerCase()] = match[2] ?? match[3] ?? match[4] ?? "";
+    attributes[match[1].toLowerCase()] = (match[2] ?? match[3] ?? match[4] ?? "").trim();
   }
   return attributes;
 }
@@ -142,9 +142,11 @@ function calendarDates(dayNumbers, year, month) {
 
 function isAvailable(cell) {
   const attributeNames = Object.keys(cell.attributes);
-  const hasOnlyKnownAttributes = attributeNames.length === 0 ||
-    (attributeNames.length === 1 && attributeNames[0] === "rowspan");
-  return cell.text === "" && hasOnlyKnownAttributes;
+  const hasOnlyKnownAttributes = attributeNames.every(name => ["rowspan", "class", "style"].includes(name));
+  const hasKnownClass = cell.attributes.class === undefined || cell.attributes.class === "list";
+  const hasKnownStyle = cell.attributes.style === undefined ||
+    /^border:1px solid #cccccc;$/i.test(cell.attributes.style);
+  return cell.text === "" && hasOnlyKnownAttributes && hasKnownClass && hasKnownStyle;
 }
 
 export function reservationEndDate(todayIso, months = 2) {
@@ -271,4 +273,140 @@ export function mergeConsecutiveKomaokaSlots(slots) {
     }
   }
   return merged;
+}
+
+function sleep(milliseconds) {
+  return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
+function createKomaokaUrl(config, roomId, weekStart) {
+  const { year, month, day } = parseIsoDate(weekStart);
+  const url = new URL(config.baseUrl);
+  url.searchParams.set("r", roomId);
+  url.searchParams.set("year", String(year));
+  url.searchParams.set("month", String(month));
+  url.searchParams.set("day", String(day));
+  return url.toString();
+}
+
+function shouldRetryKomaoka(error) {
+  return error?.name === "AbortError" ||
+    error?.name === "TypeError" ||
+    error?.retryable === true ||
+    (Number.isInteger(error?.status) && (error.status === 429 || error.status >= 500));
+}
+
+async function fetchKomaokaWeek({ fetchImpl, sourceUrl, timeoutMs, retries, retryDelayMs, sleepImpl }) {
+  let attempt = 0;
+  while (true) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetchImpl(sourceUrl, { signal: controller.signal });
+      if (!response.ok) {
+        const error = new Error(`Komaoka request failed: HTTP ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+      return await response.arrayBuffer();
+    } catch (error) {
+      if (attempt >= retries || !shouldRetryKomaoka(error)) throw error;
+      attempt += 1;
+      await sleepImpl(retryDelayMs);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+export async function collectKomaokaAvailability({
+  config,
+  today,
+  fetchImpl = fetch,
+  sleepImpl = sleep,
+  decodeImpl = decodeKomaokaHtml,
+  now = () => new Date().toISOString()
+}) {
+  const endDate = reservationEndDate(today, config.horizonMonths);
+  const tasks = weeklyStartDates(today, endDate).flatMap(weekStart =>
+    config.rooms.map(room => ({ room, weekStart }))
+  );
+  const slots = [];
+  const checks = [];
+  const facilitiesSeen = new Set();
+  const roomsSeen = new Set();
+  const workerCount = Math.min(3, Math.max(1, Number(config.concurrency) || 1), tasks.length || 1);
+  const retries = Math.min(1, Math.max(0, Number(config.retries) || 0));
+  let taskIndex = 0;
+
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (taskIndex < tasks.length) {
+      const task = tasks[taskIndex++];
+      const { room, weekStart } = task;
+      const sourceUrl = createKomaokaUrl(config, room.id, weekStart);
+      const check = {
+        provider: "komaoka",
+        facilityCode: config.facilityCode,
+        facilityName: config.facilityName,
+        roomCode: room.id,
+        roomName: room.label,
+        weekStart,
+        sourceUrl
+      };
+      try {
+        const bytes = await fetchKomaokaWeek({
+          fetchImpl,
+          sourceUrl,
+          timeoutMs: config.timeoutMs,
+          retries,
+          retryDelayMs: config.retryDelayMs,
+          sleepImpl
+        });
+        const { year, month } = parseIsoDate(weekStart);
+        const parsed = parseKomaokaWeek(decodeImpl(bytes), {
+          roomId: room.id,
+          roomLabel: room.label,
+          sourceUrl,
+          year,
+          month
+        });
+        const retrievedAt = now();
+        const normalized = parsed
+          .filter(slot => slot.date >= today && slot.date <= endDate)
+          .map(slot => ({
+            ...slot,
+            sport: config.sport,
+            statusType: "KOMAOKA_AVAILABLE",
+            statusLabel: "Available",
+            area: "Yokohama",
+            purpose: config.purpose,
+            facilityName: config.facilityName,
+            courtName: room.label,
+            facilityCode: config.facilityCode,
+            phoneNumber: config.phone,
+            provider: "komaoka",
+            bookingMethod: "phone",
+            bookingPhone: config.phone,
+            sourceUrl,
+            sourceRetrievedAt: retrievedAt,
+            link: null,
+            linkNote: "Call to reserve; availability is manually updated."
+          }));
+        slots.push(...normalized);
+        facilitiesSeen.add(`komaoka:${config.facilityCode}`);
+        roomsSeen.add(`komaoka:${config.facilityCode}:${room.id}`);
+        checks.push({ ...check, ok: true, slotCount: normalized.length });
+      } catch (error) {
+        checks.push({ ...check, ok: false, error: error.message });
+      }
+    }
+  });
+
+  await Promise.all(workers);
+  const merged = mergeConsecutiveKomaokaSlots(slots);
+  const statusCounts = merged.reduce((counts, slot) => {
+    counts[slot.statusType] = (counts[slot.statusType] || 0) + 1;
+    return counts;
+  }, {});
+  return { slots: merged, checks, statusCounts, facilitiesSeen, roomsSeen };
 }
