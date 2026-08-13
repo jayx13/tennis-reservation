@@ -1,4 +1,4 @@
-import { buildAvailabilityHierarchy, formatParkOverview, isWeekendDate } from "./filters.js";
+import { availableParkNames, buildAvailabilityHierarchy, isWeekendDate } from "./filters.js";
 
 const els = {
   health: document.querySelector("#health"),
@@ -76,7 +76,7 @@ function formatDayName(value) {
   return new Intl.DateTimeFormat("en", {
     weekday: "short",
     timeZone: "Asia/Tokyo"
-  }).format(new Date(`${value}T00:00:00+09:00`)).toUpperCase();
+  }).format(new Date(`${value}T00:00:00+09:00`));
 }
 
 function formatDateLabel(value) {
@@ -171,7 +171,7 @@ function render() {
   const groupElements = buildAvailabilityHierarchy(slots).map((dateGroup) => {
     const { date } = dateGroup;
     const dateFacilities = dateGroup.timeGroups.flatMap((group) => group.facilities);
-    const dateParkCount = new Set(dateFacilities.map((facility) => facility.facilityKey)).size;
+    const dateParks = availableParkNames(dateFacilities);
     const section = document.createElement("details");
     section.className = "date-group date-disclosure";
     section.setAttribute("aria-label", `${formatDate(date)} availability`);
@@ -182,11 +182,14 @@ function render() {
       <div class="date-summary-copy">
         <div class="date-lockup">
           <span class="date-group-day-name">${formatDayName(date)}</span>
+          <span class="date-group-separator" aria-hidden="true">·</span>
           <h3 class="date-group-date-label">${formatDateLabel(date)}</h3>
         </div>
-        <span class="date-group-overview">${escapeHtml(formatParkOverview(dateFacilities))}</span>
+        <span class="date-park-list" aria-label="Available parks">
+          ${dateParks.map((park) => `<span class="park-chip">${escapeHtml(park)}</span>`).join("")}
+        </span>
       </div>
-      <span class="date-group-count">${dateParkCount} park${dateParkCount === 1 ? "" : "s"}</span>
+      <span class="date-group-count">${dateParks.length} park${dateParks.length === 1 ? "" : "s"}</span>
     `;
     section.appendChild(header);
 
@@ -195,7 +198,7 @@ function render() {
 
     for (const timeGroup of dateGroup.timeGroups) {
       const timeSection = document.createElement("details");
-      const timeParkCount = new Set(timeGroup.facilities.map((facility) => facility.facilityKey)).size;
+      const timeParks = availableParkNames(timeGroup.facilities);
       timeSection.className = "time-group time-disclosure";
       timeSection.setAttribute("aria-label", `${timeGroup.startTime} to ${timeGroup.endTime}`);
       timeSection.innerHTML = `
@@ -204,9 +207,9 @@ function render() {
             <div class="time-group-range">
               <strong>${escapeHtml(timeGroup.startTime)}</strong><span>—</span><strong>${escapeHtml(timeGroup.endTime)}</strong>
             </div>
-            <span class="time-group-overview">${escapeHtml(formatParkOverview(timeGroup.facilities))}</span>
+            <span class="time-group-overview">${timeParks.map(escapeHtml).join(" · ")}</span>
           </div>
-          <span class="time-group-count">${timeParkCount} park${timeParkCount === 1 ? "" : "s"}</span>
+          <span class="time-group-count">${timeParks.length} park${timeParks.length === 1 ? "" : "s"}</span>
         </summary>
       `;
       const facilityList = document.createElement("div");

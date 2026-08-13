@@ -109,11 +109,11 @@ export function buildAvailabilityHierarchy(slots) {
     }));
 }
 
-export function formatParkOverview(facilities) {
+export function availableParkNames(facilities) {
   const parks = new Map();
   for (const facility of facilities) {
     const key = facility.facilityKey || `${facility.provider || "official"}|${facility.facilityCode ?? facility.facilityName}`;
     parks.set(key, facility.facilityName || "Available park");
   }
-  return [...parks.values()].sort(naturalCollator.compare).join(" · ");
+  return [...parks.values()].sort(naturalCollator.compare);
 }
