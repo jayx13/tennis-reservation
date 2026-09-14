@@ -3,4 +3,5 @@ node_modules/
 .antigravitycli/
 .superpowers/
 .worktrees/
+codex-skills/
 public/data/availability.json

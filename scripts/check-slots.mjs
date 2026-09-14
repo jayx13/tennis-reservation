@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { collectKomaokaAvailability } from "./komaoka.mjs";
+import { collectKawasakiAvailability } from "./kawasaki.mjs";
 
 const root = process.cwd();
 const config = JSON.parse(await readFile(path.join(root, "reservation.config.json"), "utf8"));
@@ -630,6 +631,15 @@ async function run() {
   for (const facility of komaoka.facilitiesSeen) facilitiesSeen.add(facility);
   for (const room of komaoka.roomsSeen) roomsSeen.add(room);
 
+  const kawasaki = await collectKawasakiAvailability({ config: config.kawasaki, dates });
+  slots.push(...kawasaki.slots);
+  checks.push(...kawasaki.checks);
+  for (const [status, count] of Object.entries(kawasaki.statusCounts)) {
+    statusCounts[status] = (statusCounts[status] || 0) + count;
+  }
+  for (const facility of kawasaki.facilitiesSeen) facilitiesSeen.add(facility);
+  for (const room of kawasaki.roomsSeen) roomsSeen.add(room);
+
   const uniqueSlots = [];
   const slotKeys = new Set();
   for (const slot of slots) {
@@ -661,6 +671,12 @@ async function run() {
     source: config.baseUrl,
     ok: true,
     error: null,
+    coverage: [
+      ...(config.facilities || []).map(f => ({ provider: "ekanagawa", sport: "tennis", facilityCode: f.fc, facilityName: f.name })),
+      ...(config.yokohama?.facilities || []).map(f => ({ provider: "yokohama", sport: f.sport || "tennis", facilityCode: f.code, facilityName: f.displayName || f.name })),
+      ...(config.komaoka ? [{ provider: "komaoka", sport: "basketball", facilityCode: config.komaoka.facilityCode, facilityName: config.komaoka.facilityName }] : []),
+      ...kawasaki.coverage
+    ],
     summary: {
       openSlotCount: slots.length,
       facilityCount: facilitiesSeen.size,

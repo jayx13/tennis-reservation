@@ -53,6 +53,34 @@
     "L01",
     "L02"
   ],
+  "kawasaki": {
+    "enabled": true,
+    "requestDelayMs": 350,
+    "timeoutMs": 20000,
+    "facilities": [
+      { "code": "5070", "name": "大師テニスコート", "displayName": "Daishi Tennis Courts", "indoor": false },
+      { "code": "5080", "name": "富士見テニスコート", "displayName": "Fujimi Tennis Courts", "indoor": false },
+      { "code": "5150", "name": "川崎マリエンテニスコート", "displayName": "Kawasaki Marien Tennis Courts", "indoor": false },
+      { "code": "5240", "name": "川崎市多摩スポーツセンター", "displayName": "Kawasaki Tama Sports Center", "indoor": false },
+      { "code": "5310", "name": "等々力テニスコート", "displayName": "Todoroki Tennis Courts", "indoor": false },
+      { "code": "5490", "name": "とんびいけテニスコート", "displayName": "Tonbiike Tennis Courts", "indoor": false },
+      { "code": "1070", "name": "川崎市民プラザ", "displayName": "Kawasaki Civic Plaza", "indoor": true,
+        "timeBands": { "午前": ["09:00", "12:00"], "午後1": ["12:10", "15:10"], "午後2": ["15:20", "18:20"], "夜間": ["18:30", "21:30"] },
+        "timeSourceUrl": "https://www.kawasaki-shiminplaza.jp/sisetu/taiikukan/" },
+      { "code": "5180", "name": "とどろきアリーナ", "displayName": "Todoroki Arena", "indoor": true,
+        "timeBands": { "午前": ["09:00", "12:00"], "午後1": ["12:10", "15:10"], "午後2": ["15:20", "18:20"], "夜間": ["18:30", "21:30"] },
+        "timeSourceUrl": "https://www.kawasaki-todoroki-park.co.jp/pdf/arena-price.pdf" },
+      { "code": "5190", "name": "幸スポーツセンター", "displayName": "Saiwai Sports Center", "indoor": true,
+        "timeBands": { "午前": ["09:00", "12:00"], "午後1": ["12:10", "15:10"], "午後2": ["15:20", "18:20"], "夜間": ["18:30", "21:30"] },
+        "timeSourceUrl": "https://saiwai-sc.com/default/dantai/" },
+      { "code": "5220", "name": "宮前スポーツセンター", "displayName": "Miyamae Sports Center", "indoor": true,
+        "timeBands": { "午前": ["09:00", "12:00"], "午後1": ["12:10", "15:10"], "午後2": ["15:20", "18:20"], "夜間": ["18:30", "21:30"] },
+        "timeSourceUrl": "https://miyamae-sports-center.jp/userguide1/" },
+      { "code": "5510", "name": "カルッツかわさき", "displayName": "Culttz Kawasaki", "indoor": true,
+        "timeBands": { "午前": ["09:00", "12:00"], "午後1": ["12:10", "15:10"], "午後2": ["15:20", "18:20"], "夜間": ["18:30", "21:30"] },
+        "timeSourceUrl": "https://culttz.city.kawasaki.jp/use_sports/" }
+    ]
+  },
   "komaoka": {
     "baseUrl": "https://cgi.city.yokohama.lg.jp/shimin/chikucenter/display.php",
     "facilityCode": "c12500",

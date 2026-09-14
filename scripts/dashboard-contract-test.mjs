@@ -3,6 +3,17 @@ import { readFile } from "node:fs/promises";
 import * as dashboardFilters from "../public/filters.js";
 
 const { isWeekendDate, toDisplaySlots } = dashboardFilters;
+assert.equal(dashboardFilters.matchesRegion({}, "kanagawa"), true);
+assert.equal(dashboardFilters.matchesRegion({ provider: "ekanagawa" }, "kanagawa"), true);
+assert.equal(dashboardFilters.matchesRegion({}, "kawasaki"), false);
+assert.equal(dashboardFilters.venueKey({ facilityCode: "42" }), "ekanagawa|42");
+const healthNow = Date.parse("2026-09-14T12:00:00Z");
+const healthySnapshot = { ok: true, generatedAt: "2026-09-14T11:00:00Z", checks: [] };
+assert.equal(dashboardFilters.availabilityHealth(healthySnapshot, healthNow).warning, false);
+assert.equal(dashboardFilters.availabilityHealth({ ...healthySnapshot, checks: [{ error: "timeout" }] }, healthNow).label, "Latest check incomplete");
+assert.equal(dashboardFilters.availabilityHealth({ ...healthySnapshot, generatedAt: "2026-09-14T09:59:00Z" }, healthNow).label, "Data older than 2 hours");
+assert.equal(dashboardFilters.availabilityHealth({ ...healthySnapshot, generatedAt: null }, healthNow).warning, true);
+assert.deepEqual(dashboardFilters.dateSlotCounts([{ date: "2026-09-15" }], ["2026-09-14", "2026-09-15"]), [["2026-09-14", 0], ["2026-09-15", 1]]);
 
 const [configText, html, app, css, localServer, workflow, readme, komaoka] = await Promise.all([
   readFile(new URL("../reservation.config.json", import.meta.url), "utf8"),
@@ -44,12 +55,13 @@ assert.doesNotMatch(html, /themeToggle|Light mode|Dark mode/, "permanent dark ma
 
 assert.match(app, /facilityCount/, "facility metric rendering");
 assert.match(app, /sportMeta/, "sport-aware copy");
-assert.match(app, /tennis:\s*\{[\s\S]*?facilityCount:\s*6,/, "six tracked tennis venues");
-assert.match(app, /basketball:\s*\{[\s\S]*?facilityCount:\s*9,/, "nine tracked basketball venues");
+assert.match(app, /data\.coverage/, "venue totals use coverage metadata");
+assert.match(app, /Venues with openings/, "fallback total accurately labeled");
 assert.match(app, /clearFilters\.addEventListener/, "filter reset behavior");
 assert.match(app, /weekendFilter\.addEventListener/, "weekend filter behavior");
 assert.match(app, /weekendFilter\.checked\s*=\s*false/, "Clear resets weekend filter");
-assert.doesNotMatch(app, /localStorage|data-theme|themeToggle/, "theme switching removed");
+assert.doesNotMatch(app, /data-theme|themeToggle/, "theme switching removed");
+assert.match(app, /localStorage/, "saved venue preferences");
 assert.match(app, /bookingMethod\s*===\s*["']phone["']/, "phone booking branch");
 assert.match(app, /tel:\$\{slot\.bookingPhone\.replace\(\/\\D\/g,\s*["']{2}\)\}/, "telephone URL generation");
 assert.match(app, /Phone booking/, "phone booking badge");
@@ -57,8 +69,14 @@ assert.match(komaoka, /Availability is manually updated by the facility\. Call t
 assert.match(app, /Source calendar/, "Komaoka source calendar link");
 assert.match(app, /sourceUrl/, "source calendar metadata");
 
-assert.match(css, /--acid:\s*#adff52/i, "acid-lime design token");
-assert.match(css, /--cyan:\s*#58dbff/i, "cyan design token");
+assert.match(css, /--acid:\s*#d9f279/i, "lime design token");
+assert.match(css, /--forest:\s*#183f31/i, "forest design token");
+assert.match(html, /id="themeSwitch"/, "theme switcher control");
+assert.match(html, /class="theme-switch"/, "theme switcher styling hook");
+assert.match(app, /themeSwitch/, "theme switch wiring");
+assert.match(app, /updateThemeUI/, "theme UI updates");
+assert.match(css, /prefers-color-scheme:\s*dark/i, "system dark mode media query");
+assert.match(css, /\[data-color-scheme=["']dark["']\]/i, "dark mode token overrides");
 assert.match(css, /\.brand-mark/, "brand styling");
 assert.match(css, /\.slot-card/, "result-row styling");
 assert.match(css, /@media\s*\(max-width:/, "responsive breakpoint");
@@ -72,7 +90,10 @@ assert.match(css, /\.reserve-btn-phone/, "phone booking CTA styling");
 assert.match(css, /\.slot-source-link/, "source calendar link styling");
 assert.match(css, /\.slot-card-warning/, "manual-update warning styling");
 assert.match(css, /\.slot-source-link\s*\{[\s\S]*?min-height:\s*44px;/, "source calendar tap target");
-assert.match(css, /@media\s*\(max-width:\s*680px\)\s*\{[\s\S]*?\.slot-card-komaoka\s*\{[\s\S]*?grid-template-columns:\s*1fr;/, "Komaoka mobile card stacks");
+assert.match(css, /@media\s*\(max-width:\s*680px\)\s*\{[\s\S]*?\.slot-card-komaoka\s*\{[\s\S]*?grid-template-columns:\s*1fr\s*[;}]/, "Komaoka mobile card stacks");
+assert.equal(dashboardFilters.matchesRegion({ provider: "komaoka" }, "yokohama"), true, "phone venue included in Yokohama");
+assert.equal(dashboardFilters.matchesRegion({ provider: "kawasaki" }, "yokohama"), false, "region separation");
+assert.notEqual(dashboardFilters.venueKey({ provider: "kawasaki", facilityCode: "1" }), dashboardFilters.venueKey({ provider: "yokohama", facilityCode: "1" }), "favorites isolated by provider");
 
 function displaySlot(provider, roomCode, roomName, startTime, endTime) {
   return {

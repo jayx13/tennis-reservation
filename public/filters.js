@@ -113,7 +113,29 @@ export function availableParkNames(facilities) {
   const parks = new Map();
   for (const facility of facilities) {
     const key = facility.facilityKey || `${facility.provider || "official"}|${facility.facilityCode ?? facility.facilityName}`;
-    parks.set(key, facility.facilityName || "Available park");
+    const name = facility.facilityName || "Available park";
+    parks.set(key, facility.indoor && !/\(indoor\)/i.test(name) ? `${name} (indoor)` : name);
   }
   return [...parks.values()].sort(naturalCollator.compare);
+}
+export function venueKey(slot) {
+  return `${slot.provider || "ekanagawa"}|${slot.facilityCode ?? slot.facilityName}`;
+}
+
+export function matchesRegion(slot, region) {
+  const provider = slot.provider || "ekanagawa";
+  return !region || provider === region || (region === "kanagawa" && provider === "ekanagawa") || (region === "yokohama" && provider === "komaoka");
+}
+
+export function availabilityHealth(data, now = Date.now()) {
+  const incomplete = !data.ok || (data.checks || []).some((check) => Boolean(check.error));
+  const generated = Date.parse(data.generatedAt);
+  const stale = !Number.isFinite(generated) || now - generated > 2 * 60 * 60 * 1000;
+  return { warning: incomplete || stale, label: incomplete ? "Latest check incomplete" : stale ? "Data older than 2 hours" : "Latest check complete" };
+}
+
+export function dateSlotCounts(slots, checkedDates = []) {
+  const counts = new Map(checkedDates.map((date) => [date, 0]));
+  for (const slot of slots) counts.set(slot.date, (counts.get(slot.date) || 0) + 1);
+  return [...counts].sort(([a], [b]) => a.localeCompare(b));
 }
