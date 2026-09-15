@@ -6,6 +6,17 @@ export function isWeekendDate(value) {
   return weekday === 0 || weekday === 6;
 }
 
+export function kawasakiBookingLinks() {
+  return [
+    { label: "Basketball", url: "https://www.fureai-net.city.kawasaki.jp/web/?IKIND=2000" },
+    { label: "Barbecue", url: "https://www.fureai-net.city.kawasaki.jp/web/?IKIND=1000" }
+  ];
+}
+
+export function bookingLink(slot) {
+  return slot.link || slot.reservationUrl || "";
+}
+
 export function legacyCourtName(slot) {
   if (slot.provider === "komaoka" || slot.roomNames?.length > 1) return "";
   return slot.courtName ?? "";

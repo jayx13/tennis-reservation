@@ -3,6 +3,18 @@ import { readFile } from "node:fs/promises";
 import * as dashboardFilters from "../public/filters.js";
 
 const { isWeekendDate, toDisplaySlots } = dashboardFilters;
+assert.deepEqual(dashboardFilters.kawasakiBookingLinks(), [
+  { label: "Basketball", url: "https://www.fureai-net.city.kawasaki.jp/web/?IKIND=2000" },
+  { label: "Barbecue", url: "https://www.fureai-net.city.kawasaki.jp/web/?IKIND=1000" }
+]);
+assert.equal(
+  dashboardFilters.bookingLink({ reservationUrl: "https://example.com/legacy" }),
+  "https://example.com/legacy"
+);
+assert.equal(
+  dashboardFilters.bookingLink({ link: "https://example.com/current", reservationUrl: "https://example.com/legacy" }),
+  "https://example.com/current"
+);
 assert.equal(dashboardFilters.matchesRegion({}, "kanagawa"), true);
 assert.equal(dashboardFilters.matchesRegion({ provider: "ekanagawa" }, "kanagawa"), true);
 assert.equal(dashboardFilters.matchesRegion({}, "kawasaki"), false);

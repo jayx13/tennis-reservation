@@ -17,7 +17,7 @@ assert.deepEqual(parsed.slots.map(s => [s.date,s.startTime,s.endTime,s.indoor]),
 ]);
 assert.equal(parsed.slots[0].provider, 'kawasaki');
 assert.equal(parsed.slots[0].facilityName, 'Kawasaki Civic Plaza');
-assert.equal(parsed.slots[0].reservationUrl, 'https://www.fureai-net.city.kawasaki.jp/web/index.jsp');
+assert.equal(parsed.slots[0].link, 'https://www.fureai-net.city.kawasaki.jp/web/?IKIND=2000');
 assert.equal(parseKawasakiWeek(weekly, { room, dates: ['2027-01-04'] }).slots.length, 1);
 // Numeric starts must not fabricate end times; full-width labels normalize.
 const outdoor = { ...room, facility: { ...facility, indoor: false, timeBands: {} } };
@@ -25,6 +25,7 @@ const numeric = parseKawasakiWeek(weekly.replace('午前<a', '１６００<a'), 
 assert.equal(numeric.slots[0].startTime, '16:00');
 assert.equal(numeric.slots[0].endTime, '');
 assert.equal(numeric.slots[0].indoor, false);
+assert.equal(numeric.slots[0].link, 'https://www.fureai-net.city.kawasaki.jp/web/?IKIND=1000');
 assert.throws(() => parseKawasakiWeek('<h1>Error</h1>', { room, dates }), /calendar/i);
 assert.throws(() => parseKawasakiWeek(weekly.replace('川崎市民プラザ体育館', '違う施設'), { room, dates }), /identity/i);
 assert.throws(() => parseKawasakiWeek(weekly.replace('<td><img', '<td colspan="2"><img'), { room, dates }), /structure/i);

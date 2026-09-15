@@ -341,6 +341,41 @@ h1 {
   font-size:12px;
   min-height:44px
 }
+
+.kawasaki-shortcuts {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin:0 0 18px;
+  padding:12px 15px;
+  border:1px solid var(--line);
+  border-left:4px solid var(--acid);
+  background:color-mix(in srgb, var(--acid) 8%, transparent);
+}
+.kawasaki-shortcuts > span {
+  color:var(--muted);
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+.kawasaki-shortcuts nav {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.kawasaki-shortcuts a {
+  color:var(--text);
+  font-size:12px;
+  font-weight:700;
+  text-underline-offset:3px;
+}
+.kawasaki-shortcuts a:hover,
+.kawasaki-shortcuts a:focus-visible {
+  color:var(--forest);
+  text-decoration-thickness:2px;
+}
 .region-tabs button[aria-pressed=true] {
   background:var(--forest);
   color:var(--paper);

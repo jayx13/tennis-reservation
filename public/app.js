@@ -1,4 +1,4 @@
-import { availableParkNames, buildAvailabilityHierarchy, isWeekendDate, venueKey, matchesRegion, availabilityHealth, dateSlotCounts } from "./filters.js";
+import { availableParkNames, buildAvailabilityHierarchy, isWeekendDate, venueKey, matchesRegion, availabilityHealth, dateSlotCounts, kawasakiBookingLinks, bookingLink } from "./filters.js";
 
 const els = {
   health: document.querySelector("#health"),
@@ -22,8 +22,18 @@ const els = {
   facilitySource: document.querySelector("#facilitySource"),
   resultsTitle: document.querySelector("#resultsTitle"),
   sportIndex: document.querySelector("#sportIndex"),
+  kawasakiLinks: document.querySelector("#kawasakiLinks"),
   sportTabs: [...document.querySelectorAll(".sport-tab")]
 };
+
+for (const item of kawasakiBookingLinks()) {
+  const link = document.createElement("a");
+  link.href = item.url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = `${item.label} ↗`;
+  els.kawasakiLinks?.append(link);
+}
 
 let data = { ok: false, slots: [], summary: {} };
 function readSaved(key, fallback) {
@@ -306,7 +316,7 @@ function render() {
         : "";
       const action = isPhoneBooking
         ? `<a href="tel:${slot.bookingPhone.replace(/\D/g, "")}" class="reserve-btn reserve-btn-phone">Call Komaoka · ${escapeHtml(slot.bookingPhone)}</a>`
-        : `<a href="${escapeHtml(safeUrl(slot.link))}" target="_blank" rel="noopener noreferrer" class="reserve-btn">${actionLabel}<span aria-hidden="true">↗</span></a>`;
+        : `<a href="${escapeHtml(safeUrl(bookingLink(slot)))}" target="_blank" rel="noopener noreferrer" class="reserve-btn">${actionLabel}<span aria-hidden="true">↗</span></a>`;
 
       card.innerHTML = `
         <div class="facility-availability-main">

@@ -1,5 +1,5 @@
 const BASE = 'https://www.fureai-net.city.kawasaki.jp';
-const BOOKING_URL = `${BASE}/web/index.jsp`;
+const bookingUrl = indoor => `${BASE}/web/?IKIND=${indoor ? '2000' : '1000'}`;
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const decode = value => String(value).replace(/&#(x[0-9a-f]+|\d+);/gi, (_, n) => String.fromCodePoint(n[0].toLowerCase() === 'x' ? parseInt(n.slice(1), 16) : Number(n)))
   .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
@@ -89,8 +89,8 @@ export function parseKawasakiWeek(html, { room, dates }) {
         roomCode: room.roomName.normalize('NFKC'), roomName: room.roomName,
         indoor: room.facility.indoor === true, date: weekDates[i], startTime, endTime,
         timeLabel: endTime ? `${startTime}–${endTime}` : `From ${startTime}`,
-        statusType: 'Available', statusLabel: 'Available', reservationUrl: BOOKING_URL,
-        sourceUrl: BOOKING_URL
+        statusType: 'Available', statusLabel: 'Available', link: bookingUrl(room.facility.indoor === true),
+        sourceUrl: bookingUrl(room.facility.indoor === true)
       });
     }
   }
