@@ -1,503 +1,316 @@
-import { availableParkNames, buildAvailabilityHierarchy, isWeekendDate, venueKey, matchesRegion, availabilityHealth, dateSlotCounts, kawasakiBookingLinks, bookingLink } from "./filters.js";
+import {
+  DEFAULT_SCHEDULE,
+  availabilityHealth,
+  bookingLink,
+  dateSlotCounts,
+  isWeekendDate,
+  kawasakiBookingLinks,
+  legacyCourtName,
+  matchesRegion,
+  normalizeSchedule,
+  preferenceTier,
+  rankSlots,
+  toDisplaySlots,
+  venueKey
+} from "./filters.js";
 
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => [...document.querySelectorAll(selector)];
 const els = {
-  health: document.querySelector("#health"),
-  slotCount: document.querySelector("#slotCount"),
-  facilityCount: document.querySelector("#facilityCount"),
-  facilityMetricLabel: document.querySelector("#facilityMetricLabel"),
-  lastChecked: document.querySelector("#lastChecked"),
-  dateWindow: document.querySelector("#dateWindow"),
-  dateFilter: document.querySelector("#dateFilter"),
-  timeFilter: document.querySelector("#timeFilter"),
-  searchFilter: document.querySelector("#searchFilter"),
-  weekendFilter: document.querySelector("#weekendFilter"),
-  clearFilters: document.querySelector("#clearFilters"),
-  statusMix: document.querySelector("#statusMix"),
-  resultCount: document.querySelector("#resultCount"),
-  slots: document.querySelector("#slots"),
-  emptyState: document.querySelector("#emptyState"),
-  eyebrow: document.querySelector("#eyebrow"),
-  pageTitle: document.querySelector("#pageTitle"),
-  pageDescription: document.querySelector("#pageDescription"),
-  facilitySource: document.querySelector("#facilitySource"),
-  resultsTitle: document.querySelector("#resultsTitle"),
-  sportIndex: document.querySelector("#sportIndex"),
-  kawasakiLinks: document.querySelector("#kawasakiLinks"),
-  sportTabs: [...document.querySelectorAll(".sport-tab")]
+  health: $("#health"), slotCount: $("#slotCount"), facilityCount: $("#facilityCount"),
+  facilityMetricLabel: $("#facilityMetricLabel"), lastChecked: $("#lastChecked"), dateWindow: $("#dateWindow"),
+  dateFilter: $("#dateFilter"), timeFilter: $("#timeFilter"), regionFilter: $("#regionFilter"),
+  sortFilter: $("#sortFilter"), searchFilter: $("#searchFilter"), weekendFilter: $("#weekendFilter"),
+  favoritesFilter: $("#favoritesFilter"), clearFilters: $("#clearFilters"), dateStrip: $("#dateStrip"),
+  activeFilters: $("#activeFilters"), slots: $("#slots"), emptyState: $("#emptyState"),
+  resultCount: $("#resultCount"), resultLabel: $("#resultLabel"), resultsTitle: $("#resultsTitle"),
+  sportIndex: $("#sportIndex"), eyebrow: $("#eyebrow"), pageTitle: $("#pageTitle"),
+  pageDescription: $("#pageDescription"), facilitySource: $("#facilitySource"), kawasakiLinks: $("#kawasakiLinks"),
+  themeSwitch: $("#themeSwitch"), viewBest: $("#viewBest"), viewAll: $("#viewAll"),
+  bestMatchCount: $("#bestMatchCount"), allSlotCount: $("#allSlotCount"), editSchedule: $("#editSchedule"),
+  scheduleDialog: $("#scheduleDialog"), scheduleForm: $("#scheduleForm"), resetSchedule: $("#resetSchedule"),
+  scheduleTimeLabel: $("#scheduleTimeLabel"), filterDialog: $("#filterDialog"),
+  filterDialogOpen: $("#filterDialogOpen"), filterDialogClose: $("#filterDialogClose"),
+  applyMobileFilters: $("#applyMobileFilters"), mobileDateFilter: $("#mobileDateFilter"),
+  mobileTimeFilter: $("#mobileTimeFilter"), mobileRegionFilter: $("#mobileRegionFilter"),
+  mobileSearchFilter: $("#mobileSearchFilter"), mobileWeekendFilter: $("#mobileWeekendFilter"),
+  mobileFavoritesFilter: $("#mobileFavoritesFilter"), mobileSortFilter: $("#mobileSortFilter"),
+  activeFilterCount: $("#activeFilterCount"), toast: $("#toast"), sportTabs: $$(".sport-tab")
 };
 
-for (const item of kawasakiBookingLinks()) {
-  const link = document.createElement("a");
-  link.href = item.url;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  link.textContent = `${item.label} ↗`;
-  els.kawasakiLinks?.append(link);
-}
-
-let data = { ok: false, slots: [], summary: {} };
 function readSaved(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
 }
 function save(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* Storage may be disabled. */ }
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* Private browsing may disable storage. */ }
 }
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
+}
+function safeUrl(value) {
+  try { const url = new URL(value, location.href); return ["http:", "https:", "tel:"].includes(url.protocol) ? url.href : "#"; } catch { return "#"; }
+}
+function localDate(value) {
+  const [year, month, day] = String(value).split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+function formatDate(value, style = "long") {
+  const options = style === "short" ? { month: "short", day: "numeric" } : { weekday: "long", month: "long", day: "numeric" };
+  return new Intl.DateTimeFormat("en", options).format(localDate(value));
+}
+function timeBucket(slot) {
+  const hour = Number(String(slot.startTime).slice(0, 2));
+  return hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
+}
+function announce(message) {
+  els.toast.textContent = message;
+  els.toast.classList.add("show");
+  clearTimeout(announce.timer);
+  announce.timer = setTimeout(() => els.toast.classList.remove("show"), 2400);
+}
+function transition(update) {
+  if (document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches) document.startViewTransition(update);
+  else update();
+}
+
 const preferences = readSaved("court-finder-preferences", {});
-let activeSport = preferences?.sport === "basketball" ? "basketball" : "tennis";
-let activeRegion = ["kanagawa", "yokohama", "kawasaki"].includes(preferences?.region) ? preferences.region : "";
-const savedVenues = readSaved("court-finder-venues", []);
-const favorites = new Set(Array.isArray(savedVenues) ? savedVenues : []);
-const disclosureState = new Map();
-const favoritesFilter = document.querySelector("#favoritesFilter");
-const dateStrip = document.querySelector("#dateStrip");
-const activeFilters = document.querySelector("#activeFilters");
-const themeSwitch = document.querySelector("#themeSwitch");
-const themeMeta = document.querySelector('meta[name="theme-color"]');
+let activeSport = preferences.sport === "basketball" ? "basketball" : "tennis";
+let viewMode = preferences.viewMode === "all" ? "all" : "best";
+let sortMode = ["recommended", "soonest", "startTime", "distance"].includes(preferences.sortMode) ? preferences.sortMode : "recommended";
+let schedule = normalizeSchedule(readSaved("court-finder-schedule", DEFAULT_SCHEDULE));
+const favorites = new Set(Array.isArray(readSaved("court-finder-venues", [])) ? readSaved("court-finder-venues", []) : []);
+let data = { ok: false, slots: [], summary: {}, checks: [] };
 
-function currentTheme() {
-  const scheme = document.documentElement.getAttribute("data-color-scheme");
-  if (scheme === "dark" || scheme === "light") return scheme;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+const sportMeta = {
+  tennis: { number: "01", title: "Tennis", eyebrow: "Kanagawa public tennis · refreshed hourly", headline: "Courts that fit<br><em>your week.</em>" },
+  basketball: { number: "02", title: "Basketball", eyebrow: "Yokohama public basketball · refreshed hourly", headline: "Hoops when you<br><em>have time.</em>" }
+};
+
+for (const item of kawasakiBookingLinks()) {
+  const link = document.createElement("a");
+  link.href = item.url; link.target = "_blank"; link.rel = "noopener noreferrer";
+  link.innerHTML = `<span>${escapeHtml(item.label)}</span><span aria-hidden="true">↗</span>`;
+  els.kawasakiLinks.append(link);
 }
 
+function persistPreferences() {
+  save("court-finder-preferences", { sport: activeSport, viewMode, sortMode });
+}
+function filters() {
+  return {
+    date: els.dateFilter.value,
+    time: els.timeFilter.value,
+    region: els.regionFilter.value,
+    query: els.searchFilter.value.trim().toLowerCase(),
+    weekend: els.weekendFilter.checked,
+    saved: els.favoritesFilter.checked
+  };
+}
+function matchesSearch(slot, query) {
+  return !query || [slot.date, slot.startTime, slot.endTime, slot.statusLabel, slot.facilityName, slot.roomName, slot.courtName, slot.area, slot.provider, slot.indoor ? "indoor" : ""].join(" ").toLowerCase().includes(query);
+}
+function filteredSlots({ ignoreDate = false } = {}) {
+  const state = filters();
+  return data.slots.filter((slot) => (slot.sport || "tennis") === activeSport &&
+    (ignoreDate || !state.date || slot.date === state.date) && matchesRegion(slot, state.region) &&
+    (!state.saved || favorites.has(venueKey(slot))) && (!state.time || timeBucket(slot) === state.time) &&
+    (!state.weekend || isWeekendDate(slot.date)) && matchesSearch(slot, state.query));
+}
+function setOptions(select, options, current) {
+  select.replaceChildren(new Option("Any date", ""), ...options.map(([date, count]) => new Option(`${formatDate(date, "short")} · ${count}`, date)));
+  select.value = options.some(([date]) => date === current) ? current : "";
+}
+function renderDateOptions() {
+  const options = dateSlotCounts(data.slots.filter((slot) => (slot.sport || "tennis") === activeSport), data.summary?.datesChecked || []);
+  const current = els.dateFilter.value;
+  setOptions(els.dateFilter, options, current);
+  setOptions(els.mobileDateFilter, options, current);
+}
+function renderDateStrip() {
+  const options = dateSlotCounts(filteredSlots({ ignoreDate: true }));
+  const current = els.dateFilter.value;
+  els.dateStrip.innerHTML = `<button class="date-chip ${current ? "" : "active"}" data-date=""><span>Any</span><strong>${options.reduce((sum, [, count]) => sum + count, 0)}</strong></button>` + options.slice(0, 18).map(([date, count]) => {
+    const parsed = localDate(date);
+    const day = new Intl.DateTimeFormat("en", { weekday: "short" }).format(parsed);
+    return `<button class="date-chip ${date === current ? "active" : ""}" data-date="${date}"><span>${day}</span><strong>${parsed.getDate()} · ${count}</strong></button>`;
+  }).join("");
+  els.dateStrip.querySelectorAll("[data-date]").forEach((button) => button.addEventListener("click", () => {
+    els.dateFilter.value = button.dataset.date;
+    transition(render);
+  }));
+}
+function renderActiveFilters() {
+  const state = filters();
+  const chips = [];
+  if (state.date) chips.push(formatDate(state.date, "short"));
+  if (state.time) chips.push(state.time);
+  if (state.region) chips.push(state.region);
+  if (state.query) chips.push(`“${state.query}”`);
+  if (state.weekend) chips.push("Weekends");
+  if (state.saved) chips.push("Saved");
+  els.activeFilters.innerHTML = chips.map((label) => `<span class="filter-chip">${escapeHtml(label)}</span>`).join("");
+  els.activeFilterCount.textContent = String(chips.length);
+}
+function tierLabel(slot) {
+  const tier = preferenceTier(slot, schedule);
+  return tier === 0 ? "Prime weekend" : tier === 1 ? "Weekend match" : tier === 2 ? "After work" : "Open court";
+}
+function slotCourtNames(slot) {
+  const names = [...(slot.roomNames || []), legacyCourtName(slot)].filter(Boolean);
+  return names.length ? [...new Set(names)] : [slot.roomName || slot.courtName || "Available space"];
+}
+function renderCard(slot) {
+  const isPhoneBooking = slot.bookingMethod === "phone" && slot.bookingPhone;
+  const sourceUrl = safeUrl(slot.sourceUrl);
+  const url = safeUrl(bookingLink(slot));
+  const saved = favorites.has(venueKey(slot));
+  const courts = slotCourtNames(slot);
+  const distance = slot.distanceFromYokohamaStationKm != null ? `${escapeHtml(slot.distanceFromYokohamaStationKm)} km from Yokohama Station` : escapeHtml(slot.area || "Public facility");
+  const action = isPhoneBooking
+    ? `<a href="tel:${slot.bookingPhone.replace(/\D/g, "")}" class="reserve-btn reserve-btn-phone">Call Komaoka</a>`
+    : `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="reserve-btn">Book now <span aria-hidden="true">↗</span></a>`;
+  const sourceLink = sourceUrl !== "#" ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer" class="slot-source-link">Source calendar ↗</a>` : "";
+  const note = slot.linkNote ? `<p class="slot-card-warning">${escapeHtml(slot.linkNote)}</p>` : "";
+  return `<article class="slot-card ${isPhoneBooking ? "slot-card-komaoka" : ""}" data-venue="${escapeHtml(venueKey(slot))}">
+    <div class="slot-time"><time datetime="${escapeHtml(`${slot.date}T${slot.startTime}`)}">${escapeHtml(slot.startTime)}</time><span>to ${escapeHtml(slot.endTime)}</span></div>
+    <div class="facility-availability-main"><span class="match-badge ${isPhoneBooking ? "booking-badge-phone" : "booking-badge"}">${isPhoneBooking ? "Phone booking" : tierLabel(slot)}</span><span class="slot-card-facility">${escapeHtml(slot.facilityName)}${slot.indoor && !/\(indoor\)/i.test(slot.facilityName) ? ' <span class="indoor-label">indoor</span>' : ""}</span><div class="slot-card-courts facility-courts">${courts.map((court) => `<span class="court-pill">${escapeHtml(court)}</span>`).join("")}</div></div>
+    <div class="slot-meta"><span>${distance}</span><span>${escapeHtml(slot.provider || "official")} source</span></div>
+    <div class="slot-actions"><button class="save-button ${saved ? "saved" : ""}" type="button" data-save aria-label="${saved ? "Remove saved venue" : "Save venue"}" aria-pressed="${saved}">${saved ? "★" : "☆"}</button>${action}</div>
+    <details class="slot-details"><summary>Booking details</summary><div class="slot-details-content">${sourceLink}${note}</div></details>
+  </article>`;
+}
+function renderSlots(slots) {
+  let previousDate = "";
+  els.slots.innerHTML = slots.map((slot) => {
+    const divider = slot.date === previousDate ? "" : `<div class="date-divider"><time datetime="${escapeHtml(slot.date)}">${escapeHtml(formatDate(slot.date))}</time></div>`;
+    previousDate = slot.date;
+    return divider + renderCard(slot);
+  }).join("");
+  els.slots.querySelectorAll("[data-save]").forEach((button) => button.addEventListener("click", () => {
+    const key = button.closest("[data-venue]").dataset.venue;
+    if (favorites.has(key)) favorites.delete(key); else favorites.add(key);
+    save("court-finder-venues", [...favorites]);
+    render();
+    announce(favorites.has(key) ? "Venue saved" : "Venue removed");
+  }));
+}
+function renderSummary() {
+  const sportSlots = data.slots.filter((slot) => (slot.sport || "tennis") === activeSport);
+  const best = rankSlots(sportSlots, schedule, "best", "recommended");
+  const venues = new Set(sportSlots.map(venueKey));
+  const coverage = data.coverage?.[activeSport] ?? data.summary?.coverage?.[activeSport];
+  els.slotCount.textContent = sportSlots.length.toLocaleString();
+  els.facilityCount.textContent = String(coverage ?? venues.size);
+  els.facilityMetricLabel.textContent = coverage ? "Venues tracked" : "Venues with openings";
+  els.bestMatchCount.textContent = String(best.length);
+  els.allSlotCount.textContent = String(sportSlots.length);
+  const meta = sportMeta[activeSport];
+  els.eyebrow.textContent = meta.eyebrow;
+  els.pageTitle.innerHTML = meta.headline;
+  els.sportIndex.textContent = `${meta.number} / ${meta.title}`;
+}
+function render() {
+  const ranked = rankSlots(filteredSlots(), schedule, viewMode, sortMode);
+  const displaySlots = toDisplaySlots(ranked);
+  renderSummary(); renderDateStrip(); renderActiveFilters(); renderSlots(displaySlots);
+  els.resultCount.textContent = String(displaySlots.length);
+  els.resultLabel.textContent = displaySlots.length === 1 ? "opening" : "openings";
+  els.resultsTitle.textContent = viewMode === "best" ? "Best matches" : "All courts";
+  els.emptyState.hidden = displaySlots.length > 0;
+  els.slots.hidden = displaySlots.length === 0;
+  els.slots.setAttribute("aria-busy", "false");
+  for (const [button, selected] of [[els.viewBest, viewMode === "best"], [els.viewAll, viewMode === "all"]]) {
+    button.classList.toggle("active", selected); button.setAttribute("aria-pressed", String(selected));
+  }
+  els.scheduleTimeLabel.textContent = schedule.weekdayStart;
+  persistPreferences();
+}
+function clearFilters() {
+  els.dateFilter.value = ""; els.timeFilter.value = ""; els.regionFilter.value = ""; els.searchFilter.value = "";
+  els.weekendFilter.checked = false; els.favoritesFilter.checked = false;
+  render(); els.dateFilter.focus(); announce("Filters cleared");
+}
 function updateThemeUI(theme) {
   const isDark = theme === "dark";
   document.documentElement.setAttribute("data-color-scheme", theme);
-  document.documentElement.classList.toggle("dark", isDark);
-  document.documentElement.classList.toggle("light", !isDark);
-  if (themeMeta) {
-    themeMeta.setAttribute("content", isDark ? "#0c1310" : "#f6f5ed");
-  }
-  if (themeSwitch) {
-    themeSwitch.setAttribute("aria-label", isDark ? "Switch to light appearance" : "Switch to dark appearance");
-    themeSwitch.setAttribute("title", isDark ? "Switch to light appearance" : "Switch to dark appearance");
-    const icon = themeSwitch.querySelector(".theme-switch-icon");
-    const label = themeSwitch.querySelector(".theme-switch-label");
-    if (icon) icon.textContent = isDark ? "☀️" : "🌙";
-    if (label) label.textContent = isDark ? "Light" : "Dark";
-  }
+  $("meta[name='theme-color']").content = isDark ? "#09110e" : "#f4f3ed";
+  els.themeSwitch.querySelector(".theme-switch-icon").textContent = isDark ? "☀" : "☾";
+  els.themeSwitch.setAttribute("aria-label", isDark ? "Switch appearance" : "Switch appearance");
 }
+function setView(mode) { viewMode = mode; transition(render); announce(mode === "best" ? "Showing your best matches" : "Showing every court"); }
 
-function setTheme(theme, persist = false) {
-  updateThemeUI(theme);
-  if (persist) {
-    save("court-finder-theme", theme);
-  }
-}
-
-const initialSavedTheme = readSaved("court-finder-theme", null);
-updateThemeUI(initialSavedTheme || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
-
-if (themeSwitch) {
-  themeSwitch.addEventListener("click", () => {
-    const next = currentTheme() === "dark" ? "light" : "dark";
-    setTheme(next, true);
+els.viewBest.addEventListener("click", () => setView("best"));
+els.viewAll.addEventListener("click", () => setView("all"));
+els.clearFilters.addEventListener("click", clearFilters);
+els.weekendFilter.addEventListener("change", render);
+els.favoritesFilter.addEventListener("change", render);
+els.dateFilter.addEventListener("change", render);
+els.timeFilter.addEventListener("change", render);
+els.regionFilter.addEventListener("change", render);
+els.searchFilter.addEventListener("input", render);
+els.sortFilter.addEventListener("change", () => { sortMode = els.sortFilter.value; els.mobileSortFilter.value = sortMode; transition(render); });
+els.mobileSortFilter.addEventListener("change", () => { sortMode = els.mobileSortFilter.value; els.sortFilter.value = sortMode; transition(render); });
+els.themeSwitch.addEventListener("click", () => { const theme = document.documentElement.dataset.colorScheme === "dark" ? "light" : "dark"; updateThemeUI(theme); save("court-finder-theme", theme); });
+els.editSchedule.addEventListener("click", () => {
+  for (const key of ["saturday", "sunday", "weekdayEvenings"]) els.scheduleForm.elements[key].checked = schedule[key];
+  els.scheduleForm.elements.weekdayStart.value = schedule.weekdayStart;
+  els.scheduleDialog.showModal();
+});
+els.resetSchedule.addEventListener("click", () => {
+  for (const key of ["saturday", "sunday", "weekdayEvenings"]) els.scheduleForm.elements[key].checked = DEFAULT_SCHEDULE[key];
+  els.scheduleForm.elements.weekdayStart.value = DEFAULT_SCHEDULE.weekdayStart;
+});
+els.scheduleForm.addEventListener("submit", (event) => {
+  if (event.submitter?.value !== "save") return;
+  schedule = normalizeSchedule({
+    saturday: els.scheduleForm.elements.saturday.checked,
+    sunday: els.scheduleForm.elements.sunday.checked,
+    weekdayEvenings: els.scheduleForm.elements.weekdayEvenings.checked,
+    weekdayStart: els.scheduleForm.elements.weekdayStart.value
   });
-}
-
-try {
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
-    if (!readSaved("court-finder-theme", null)) {
-      updateThemeUI(e.matches ? "dark" : "light");
-    }
-  });
-} catch {
-  /* matchMedia fallback */
-}
-
-const sportMeta = {
-  tennis: {
-    index: "01",
-    eyebrow: "The public court field guide / Tennis",
-    title: "More court time. Less searching.",
-    description: "Find your next game across Kanagawa, Yokohama and Kawasaki. Choose a day, save a venue, make it happen.",
-    source: "Kanagawa · Yokohama · Kawasaki",
-    resultsTitle: "Open tennis courts",
-    facilityLabel: "Courts tracked"
-  },
-  basketball: {
-    index: "02",
-    eyebrow: "The public court field guide / Basketball",
-    title: "Game time starts here.",
-    description: "Open basketball gym slots across nine tracked facilities, including Komaoka Community Center phone booking, refreshed from official city reservation services.",
-    source: "Yokohama system + Komaoka",
-    resultsTitle: "Open basketball gyms",
-    facilityLabel: "Gyms tracked"
-  }
-};
-
-function formatDate(value) {
-  return new Intl.DateTimeFormat("en", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    timeZone: "Asia/Tokyo"
-  }).format(new Date(`${value}T00:00:00+09:00`));
-}
-
-function formatChecked(value) {
-  if (!value) return "unavailable";
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZoneName: "short",
-    timeZone: "Asia/Tokyo"
-  }).format(new Date(value));
-}
-
-function formatDayName(value) {
-  return new Intl.DateTimeFormat("en", {
-    weekday: "short",
-    timeZone: "Asia/Tokyo"
-  }).format(new Date(`${value}T00:00:00+09:00`));
-}
-
-function formatDateLabel(value) {
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    timeZone: "Asia/Tokyo"
-  }).format(new Date(`${value}T00:00:00+09:00`)).toUpperCase();
-}
-
-function timeBucket(slot) {
-  const hour = Number(slot.startTime.slice(0, 2));
-  if (hour < 12) return "morning";
-  if (hour < 17) return "afternoon";
-  return "evening";
-}
-
-function matchesSearch(slot, query) {
-  if (!query) return true;
-  return [
-    slot.date,
-    slot.startTime,
-    slot.endTime,
-    slot.statusLabel,
-    slot.facilityName,
-    slot.roomName,
-    slot.courtName,
-    slot.area,
-    slot.provider,
-    slot.indoor ? "indoor" : ""
-  ].join(" ").toLowerCase().includes(query);
-}
-
-function filteredSlots(ignoreDate = false) {
-  const date = els.dateFilter.value;
-  const bucket = els.timeFilter.value;
-  const query = els.searchFilter.value.trim().toLowerCase();
-
-  return data.slots.filter((slot) => {
-    return (slot.sport || "tennis") === activeSport &&
-      (ignoreDate || !date || slot.date === date) &&
-      matchesRegion(slot, activeRegion) &&
-      (!favoritesFilter.checked || favorites.has(venueKey(slot))) &&
-      (!bucket || timeBucket(slot) === bucket) &&
-      (!els.weekendFilter.checked || isWeekendDate(slot.date)) &&
-      matchesSearch(slot, query);
-  });
-}
-
-function renderDateOptions() {
-  const previousDate = els.dateFilter.value;
-  const dates = dateSlotCounts(data.slots.filter((slot) => (slot.sport || "tennis") === activeSport), data.summary?.datesChecked).map(([date]) => date);
-
-  els.dateFilter.replaceChildren(new Option("All dates", ""));
-  for (const date of dates) {
-    const option = document.createElement("option");
-    option.value = date;
-    option.textContent = formatDate(date);
-    els.dateFilter.append(option);
-  }
-  els.dateFilter.value = dates.includes(previousDate) ? previousDate : "";
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function safeUrl(value) {
-  try {
-    const url = new URL(value);
-    return ["http:", "https:"].includes(url.protocol) ? url.href : "#";
-  } catch {
-    return "#";
-  }
-}
-
-function render() {
-  for (const section of els.slots.querySelectorAll("details")) disclosureState.set(section.dataset.stateKey, section.open);
-  renderControls();
-  const slots = filteredSlots();
-  els.resultCount.textContent = `${slots.length} result${slots.length === 1 ? "" : "s"}`;
-  els.emptyState.hidden = slots.length > 0;
-  els.slots.setAttribute("aria-busy", "false");
-
-  if (slots.length === 0) {
-    els.slots.replaceChildren();
-    return;
-  }
-
-  const groupElements = buildAvailabilityHierarchy(slots).map((dateGroup) => {
-    const { date } = dateGroup;
-    const dateFacilities = dateGroup.timeGroups.flatMap((group) => group.facilities);
-    const dateParks = availableParkNames(dateFacilities);
-    const section = document.createElement("details");
-    section.className = "date-group date-disclosure";
-    section.dataset.date = date;
-    section.dataset.stateKey = `${activeSport}|${date}`;
-    section.open = disclosureState.get(`${activeSport}|${date}`) ?? false;
-    if (!disclosureState.has(`${activeSport}|${date}`)) section.open = date === els.dateFilter.value || date === slots[0]?.date;
-    section.addEventListener("toggle", () => { if (section.isConnected) disclosureState.set(section.dataset.stateKey, section.open); });
-    section.setAttribute("aria-label", `${formatDate(date)} availability`);
-
-    const header = document.createElement("summary");
-    header.className = "date-group-header disclosure-summary";
-    header.innerHTML = `
-      <div class="date-summary-copy">
-        <div class="date-lockup">
-          <span class="date-group-day-name">${formatDayName(date)}</span>
-          <span class="date-group-separator" aria-hidden="true">·</span>
-          <h3 class="date-group-date-label">${formatDateLabel(date)}</h3>
-        </div>
-        <span class="date-park-list" aria-label="Available parks">
-          ${dateParks.map((park) => `<span class="park-chip">${escapeHtml(park)}</span>`).join("")}
-        </span>
-      </div>
-      <span class="date-group-count">${dateParks.length} park${dateParks.length === 1 ? "" : "s"}</span>
-    `;
-    section.appendChild(header);
-
-    const timeline = document.createElement("div");
-    timeline.className = "availability-timeline";
-
-    for (const timeGroup of dateGroup.timeGroups) {
-      const timeSection = document.createElement("details");
-      const timeParks = availableParkNames(timeGroup.facilities);
-      timeSection.className = "time-group time-disclosure";
-      timeSection.dataset.stateKey = `${activeSport}|${date}|${timeGroup.startTime}|${timeGroup.endTime}`;
-      timeSection.open = disclosureState.get(timeSection.dataset.stateKey) ?? true;
-      timeSection.addEventListener("toggle", () => { if (timeSection.isConnected) disclosureState.set(timeSection.dataset.stateKey, timeSection.open); });
-      timeSection.setAttribute("aria-label", timeGroup.endTime ? `${timeGroup.startTime} to ${timeGroup.endTime}` : `From ${timeGroup.startTime}`);
-      timeSection.innerHTML = `
-        <summary class="time-group-header disclosure-summary">
-          <div class="time-summary-copy">
-            <div class="time-group-range">
-              ${timeGroup.endTime ? `<strong>${escapeHtml(timeGroup.startTime)}</strong><span>—</span><strong>${escapeHtml(timeGroup.endTime)}</strong>` : `<strong>From ${escapeHtml(timeGroup.startTime)}</strong>`}
-            </div>
-            <span class="time-group-overview">${timeParks.map(escapeHtml).join(" · ")}</span>
-          </div>
-          <span class="time-group-count">${timeParks.length} park${timeParks.length === 1 ? "" : "s"}</span>
-        </summary>
-      `;
-      const facilityList = document.createElement("div");
-      facilityList.className = "time-group-facilities";
-
-      for (const slot of timeGroup.facilities) {
-      const card = document.createElement("article");
-      const isPhoneBooking = slot.bookingMethod === "phone" && slot.bookingPhone;
-      card.className = isPhoneBooking ? "slot-card slot-card-komaoka" : "slot-card";
-      const distance = slot.distanceFromYokohamaStationKm != null
-        ? `${escapeHtml(slot.distanceFromYokohamaStationKm)} km from Yokohama Station`
-        : escapeHtml(slot.area || "Public facility");
-      const actionLabel = "Open booking";
-      const note = slot.linkNote ? `<p class="slot-card-warning">${escapeHtml(slot.linkNote)}</p>` : "";
-      const sourceUrl = safeUrl(slot.sourceUrl);
-      const sourceLink = sourceUrl !== "#"
-        ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer" class="slot-source-link">Source calendar<span aria-hidden="true">↗</span></a>`
-        : "";
-      const action = isPhoneBooking
-        ? `<a href="tel:${slot.bookingPhone.replace(/\D/g, "")}" class="reserve-btn reserve-btn-phone">Call Komaoka · ${escapeHtml(slot.bookingPhone)}</a>`
-        : `<a href="${escapeHtml(safeUrl(bookingLink(slot)))}" target="_blank" rel="noopener noreferrer" class="reserve-btn">${actionLabel}<span aria-hidden="true">↗</span></a>`;
-
-      card.innerHTML = `
-        <div class="facility-availability-main">
-          <span class="slot-card-facility">${escapeHtml(slot.facilityName)}${slot.indoor && !/\(indoor\)/i.test(slot.facilityName) ? ' <span class="indoor-label">(indoor)</span>' : ""}</span>
-          <div class="facility-courts" aria-label="Available courts">
-            ${slot.courtNames.map((court) => `<span class="court-pill">${escapeHtml(court)}</span>`).join("")}
-          </div>
-        </div>
-        <div class="slot-card-meta">
-          <span>${distance}</span>
-          <span>${escapeHtml(slot.provider || "official")} source</span>
-        </div>
-        <div class="slot-card-status-row">
-          <span class="status"><i aria-hidden="true"></i>${escapeHtml(slot.statusLabel)}</span>
-          ${isPhoneBooking ? '<span class="booking-badge-phone">Phone booking</span>' : ""}
-          ${action}
-        </div>
-        ${note}
-        ${sourceLink}
-      `;
-        const favorite = document.createElement("button");
-        favorite.type = "button";
-        favorite.className = "favorite-btn";
-        const key = venueKey(slot);
-        favorite.setAttribute("aria-pressed", String(favorites.has(key)));
-        favorite.setAttribute("aria-label", `Save ${slot.facilityName}`);
-        favorite.textContent = favorites.has(key) ? "★ Saved" : "☆ Save";
-        favorite.addEventListener("click", () => {
-          if (favorites.has(key)) favorites.delete(key); else favorites.add(key);
-          save("court-finder-venues", [...favorites]);
-          if (favoritesFilter.checked) render();
-          else {
-            for (const button of els.slots.querySelectorAll(".favorite-btn")) {
-              if (button.dataset.venue === key) {
-                button.setAttribute("aria-pressed", String(favorites.has(key)));
-                button.textContent = favorites.has(key) ? "★ Saved" : "☆ Save";
-              }
-            }
-          }
-        });
-        favorite.dataset.venue = key;
-        card.querySelector(".facility-availability-main").append(favorite);
-        facilityList.appendChild(card);
-      }
-      timeSection.appendChild(facilityList);
-      timeline.appendChild(timeSection);
-    }
-
-    section.appendChild(timeline);
-    return section;
-  });
-
-  els.slots.replaceChildren(...groupElements);
-}
-
-function renderSummary() {
-  const sportSlots = data.slots.filter((slot) => (slot.sport || "tennis") === activeSport);
-  const content = sportMeta[activeSport];
-
-  els.eyebrow.textContent = content.eyebrow;
-  els.pageTitle.textContent = content.title;
-  els.pageDescription.textContent = content.description;
-  els.facilitySource.textContent = content.source;
-  els.resultsTitle.textContent = content.resultsTitle;
-  els.sportIndex.textContent = content.index;
-  const coverage = Array.isArray(data.coverage) ? data.coverage.filter((venue) => (venue.sport || "tennis") === activeSport) : sportSlots;
-  els.facilityCount.textContent = String(new Set(coverage.map(venueKey)).size);
-  els.facilityMetricLabel.textContent = Array.isArray(data.coverage) ? "Venues tracked" : "Venues with openings";
-  const health = availabilityHealth(data);
-  els.health.textContent = health.label;
-  els.health.parentElement.classList.toggle("error", health.warning);
-  els.slotCount.textContent = String(sportSlots.length);
-  els.lastChecked.textContent = formatChecked(data.generatedAt);
-
-  const dates = data.summary?.datesChecked || [];
-  els.dateWindow.textContent = dates.length
-    ? `${formatDate(dates[0])} — ${formatDate(dates[dates.length - 1])}`
-    : "Unavailable";
-
-  const statusCounts = sportSlots.reduce((counts, slot) => {
-    counts[slot.statusLabel] = (counts[slot.statusLabel] || 0) + 1;
-    return counts;
-  }, {});
-  els.statusMix.textContent = Object.entries(statusCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 2)
-    .map(([label, count]) => `${label} ${count}`)
-    .join(" · ") || "No open slots";
-}
+  save("court-finder-schedule", schedule); render(); announce("Schedule updated");
+});
+els.filterDialogOpen.addEventListener("click", () => {
+  els.mobileDateFilter.value = els.dateFilter.value; els.mobileTimeFilter.value = els.timeFilter.value;
+  els.mobileRegionFilter.value = els.regionFilter.value; els.mobileSearchFilter.value = els.searchFilter.value;
+  els.mobileWeekendFilter.checked = els.weekendFilter.checked; els.mobileFavoritesFilter.checked = els.favoritesFilter.checked;
+  els.filterDialog.showModal();
+});
+els.applyMobileFilters.addEventListener("click", () => {
+  els.dateFilter.value = els.mobileDateFilter.value; els.timeFilter.value = els.mobileTimeFilter.value;
+  els.regionFilter.value = els.mobileRegionFilter.value; els.searchFilter.value = els.mobileSearchFilter.value;
+  els.weekendFilter.checked = els.mobileWeekendFilter.checked; els.favoritesFilter.checked = els.mobileFavoritesFilter.checked;
+  render();
+});
+els.filterDialogClose.addEventListener("click", () => els.filterDialog.close());
+$("[data-empty-clear]").addEventListener("click", () => { clearFilters(); setView("all"); });
+for (const tab of els.sportTabs) tab.addEventListener("click", () => {
+  activeSport = tab.dataset.sport;
+  els.sportTabs.forEach((item) => { const active = item === tab; item.classList.toggle("active", active); item.setAttribute("aria-pressed", String(active)); });
+  renderDateOptions(); transition(render);
+});
 
 async function load() {
   try {
     const response = await fetch("data/availability.json", { cache: "no-store" });
-    if (!response.ok) throw new Error(`Availability request failed: ${response.status}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     data = await response.json();
-  } catch {
-    data = {
-      ok: false,
-      generatedAt: null,
-      summary: { openSlotCount: 0, datesChecked: [] },
-      slots: []
-    };
-  }
-
-  renderSummary();
-  renderDateOptions();
-  render();
-}
-
-function renderControls() {
-  save("court-finder-preferences", { sport: activeSport, region: activeRegion });
-  for (const tab of els.sportTabs) {
-    tab.classList.toggle("active", tab.dataset.sport === activeSport);
-    tab.removeAttribute("aria-selected");
-    tab.setAttribute("aria-pressed", String(tab.dataset.sport === activeSport));
-  }
-  for (const button of document.querySelectorAll("[data-region]")) button.setAttribute("aria-pressed", String(button.dataset.region === activeRegion));
-  const counts = new Map(dateSlotCounts(filteredSlots(true), data.summary?.datesChecked));
-  dateStrip.replaceChildren();
-  for (const [date, count] of [["", [...counts.values()].reduce((sum, value) => sum + value, 0)], ...[...counts].sort(([a], [b]) => a.localeCompare(b))]) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.setAttribute("aria-pressed", String(els.dateFilter.value === date));
-    button.innerHTML = `<span>${date ? escapeHtml(formatDate(date)) : "All dates"}</span><strong>${count}</strong><small>available slots</small>`;
-    button.addEventListener("click", () => { els.dateFilter.value = date; disclosureState.set(`${activeSport}|${date}`, true); for (const section of els.slots.querySelectorAll("details")) if (section.dataset.date === date) section.open = true; render(); });
-    dateStrip.append(button);
-  }
-  activeFilters.replaceChildren();
-  const filters = [
-    [activeRegion, () => { activeRegion = ""; }],
-    [els.dateFilter.value && formatDate(els.dateFilter.value), () => { els.dateFilter.value = ""; }],
-    [els.timeFilter.value, () => { els.timeFilter.value = ""; }],
-    [els.searchFilter.value, () => { els.searchFilter.value = ""; }],
-    [els.weekendFilter.checked && "Weekends", () => { els.weekendFilter.checked = false; }],
-    [favoritesFilter.checked && "Saved venues", () => { favoritesFilter.checked = false; }]
-  ];
-  for (const [label, clear] of filters) if (label) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = `${label} ×`;
-    button.setAttribute("aria-label", `Remove ${label} filter`);
-    button.addEventListener("click", () => { clear(); render(); });
-    activeFilters.append(button);
+    const health = availabilityHealth(data);
+    els.health.textContent = health.label;
+    els.health.closest(".live-status").classList.toggle("warning", health.warning);
+    els.lastChecked.textContent = data.generatedAt ? new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(data.generatedAt)) : "Unknown";
+    const dates = [...new Set(data.slots.map((slot) => slot.date))].sort();
+    els.dateWindow.textContent = dates.length ? `${formatDate(dates[0], "short")} – ${formatDate(dates.at(-1), "short")}` : "No date window";
+    renderDateOptions(); render();
+  } catch (error) {
+    els.health.textContent = "Availability unavailable";
+    els.slots.setAttribute("aria-busy", "false"); els.slots.replaceChildren();
+    els.emptyState.hidden = false; els.emptyState.querySelector("h3").textContent = "Could not load availability";
+    els.emptyState.querySelector("p").textContent = "Refresh the page in a moment.";
   }
 }
-favoritesFilter.addEventListener("change", render);
-for (const button of document.querySelectorAll("[data-region]")) button.addEventListener("click", () => { activeRegion = button.dataset.region; render(); });
-for (const [id, open] of [["expandAll", true], ["collapseAll", false]]) document.querySelector(`#${id}`).addEventListener("click", () => {
-  for (const section of els.slots.querySelectorAll("details")) { section.open = open; disclosureState.set(section.dataset.stateKey, open); }
-});
-els.dateFilter.addEventListener("change", () => {
-  for (const section of els.slots.querySelectorAll("details")) if (section.dataset.date === els.dateFilter.value) section.open = true;
-  disclosureState.set(`${activeSport}|${els.dateFilter.value}`, true);
-  render();
-});
-els.timeFilter.addEventListener("change", render);
-els.searchFilter.addEventListener("input", render);
-els.weekendFilter.addEventListener("change", render);
-els.clearFilters.addEventListener("click", () => {
-  els.dateFilter.value = "";
-  els.timeFilter.value = "";
-  els.searchFilter.value = "";
-  els.weekendFilter.checked = false;
-  favoritesFilter.checked = false;
-  activeRegion = "";
-  render();
-  els.dateFilter.focus();
-});
 
-for (const tab of els.sportTabs) {
-  tab.addEventListener("click", () => {
-    activeSport = tab.dataset.sport;
-    for (const item of els.sportTabs) {
-      const selected = item === tab;
-      item.classList.toggle("active", selected);
-      item.setAttribute("aria-pressed", String(selected));
-    }
-    renderSummary();
-    renderDateOptions();
-    render();
-  });
-}
-
+els.sortFilter.value = sortMode;
+els.mobileSortFilter.value = sortMode;
+updateThemeUI(document.documentElement.dataset.colorScheme || "dark");
 load();

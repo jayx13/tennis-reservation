@@ -3,6 +3,49 @@ import { readFile } from "node:fs/promises";
 import * as dashboardFilters from "../public/filters.js";
 
 const { isWeekendDate, toDisplaySlots } = dashboardFilters;
+assert.deepEqual(dashboardFilters.normalizeSchedule(undefined), {
+  saturday: true,
+  sunday: true,
+  weekdayEvenings: true,
+  weekdayStart: "19:00"
+});
+assert.deepEqual(dashboardFilters.normalizeSchedule({
+  saturday: false,
+  sunday: "yes",
+  weekdayEvenings: false,
+  weekdayStart: "25:00"
+}), {
+  saturday: false,
+  sunday: true,
+  weekdayEvenings: false,
+  weekdayStart: "19:00"
+});
+assert.notEqual(dashboardFilters.normalizeSchedule(undefined), dashboardFilters.normalizeSchedule(undefined));
+
+const preferenceSchedule = dashboardFilters.normalizeSchedule(undefined);
+const preferenceSlots = [
+  { id: "weekend-evening", date: "2026-09-19", startTime: "19:00", facilityName: "C", provider: "yokohama", facilityCode: "3", distanceFromYokohamaStationKm: 7 },
+  { id: "weekend-day", date: "2026-09-20", startTime: "09:00", facilityName: "B", provider: "yokohama", facilityCode: "2", distanceFromYokohamaStationKm: 4 },
+  { id: "weekday-evening", date: "2026-09-21", startTime: "20:00", facilityName: "A", provider: "yokohama", facilityCode: "1", distanceFromYokohamaStationKm: 2 },
+  { id: "weekday-day", date: "2026-09-21", startTime: "18:00", facilityName: "D", provider: "yokohama", facilityCode: "4", distanceFromYokohamaStationKm: 1 }
+];
+assert.deepEqual(preferenceSlots.map(slot => dashboardFilters.preferenceTier(slot, preferenceSchedule)), [0, 1, 2, 3]);
+assert.deepEqual(dashboardFilters.rankSlots(preferenceSlots, preferenceSchedule, "best", "recommended").map(slot => slot.id), [
+  "weekend-evening", "weekend-day", "weekday-evening"
+]);
+assert.deepEqual(dashboardFilters.rankSlots(preferenceSlots, preferenceSchedule, "all", "recommended").map(slot => slot.id), [
+  "weekend-evening", "weekend-day", "weekday-evening", "weekday-day"
+]);
+assert.deepEqual(dashboardFilters.rankSlots(preferenceSlots, preferenceSchedule, "all", "soonest").map(slot => slot.id), [
+  "weekend-evening", "weekend-day", "weekday-day", "weekday-evening"
+]);
+assert.deepEqual(dashboardFilters.rankSlots(preferenceSlots, preferenceSchedule, "all", "startTime").map(slot => slot.id), [
+  "weekend-day", "weekday-day", "weekend-evening", "weekday-evening"
+]);
+assert.deepEqual(dashboardFilters.rankSlots(preferenceSlots, preferenceSchedule, "all", "distance").map(slot => slot.id), [
+  "weekday-day", "weekday-evening", "weekend-day", "weekend-evening"
+]);
+assert.deepEqual(preferenceSlots.map(slot => slot.id), ["weekend-evening", "weekend-day", "weekday-evening", "weekday-day"]);
 assert.deepEqual(dashboardFilters.kawasakiBookingLinks(), [
   { label: "Basketball", url: "https://www.fureai-net.city.kawasaki.jp/web/?IKIND=2000" },
   { label: "Barbecue", url: "https://www.fureai-net.city.kawasaki.jp/web/?IKIND=1000" }
@@ -62,6 +105,17 @@ assert.match(html, /id="main-content"/, "main landmark target");
 assert.match(html, /class="brand-mark"/, "Night Arena brand");
 assert.match(html, /id="facilityCount"/, "facility metric");
 assert.match(html, /id="clearFilters"/, "filter reset control");
+for (const id of [
+  "viewBest", "viewAll", "editSchedule", "scheduleDialog", "scheduleForm",
+  "sortFilter", "filterDialog", "filterDialogOpen", "filterDialogClose",
+  "toast", "bestMatchCount", "allSlotCount"
+]) {
+  assert.match(html, new RegExp(`id=["']${id}["']`), `${id} UI contract`);
+}
+assert.match(html, /<dialog[^>]+id="scheduleDialog"/, "schedule editor uses native dialog");
+assert.match(html, /<dialog[^>]+id="filterDialog"/, "mobile filters use native dialog");
+assert.match(html, /id="toast"[^>]+aria-live="polite"/, "toast is announced accessibly");
+assert.match(html, /aria-label="Availability view"/, "view switch has an accessible label");
 assert.match(html, /id="weekendFilter"[^>]*type="checkbox"|type="checkbox"[^>]*id="weekendFilter"/, "weekend checkbox");
 assert.doesNotMatch(html, /themeToggle|Light mode|Dark mode/, "permanent dark markup");
 
@@ -70,6 +124,16 @@ assert.match(app, /sportMeta/, "sport-aware copy");
 assert.match(app, /data\.coverage/, "venue totals use coverage metadata");
 assert.match(app, /Venues with openings/, "fallback total accurately labeled");
 assert.match(app, /clearFilters\.addEventListener/, "filter reset behavior");
+assert.match(app, /court-finder-schedule/, "saved schedule storage key");
+assert.match(app, /normalizeSchedule/, "schedule state normalization");
+assert.match(app, /rankSlots/, "ranked feed rendering");
+assert.match(app, /viewMode/, "Best and All view state");
+assert.match(app, /sortMode/, "sort mode state");
+assert.match(app, /scheduleDialog\.showModal\(\)/, "native schedule dialog wiring");
+assert.match(app, /filterDialog\.showModal\(\)/, "native mobile filter dialog wiring");
+assert.match(app, /startViewTransition/, "progressive view transitions");
+assert.match(app, /toast\.classList\.add\(["']show["']\)/, "toast feedback");
+assert.match(app, /<time datetime=/, "result cards use semantic time markup");
 assert.match(app, /weekendFilter\.addEventListener/, "weekend filter behavior");
 assert.match(app, /weekendFilter\.checked\s*=\s*false/, "Clear resets weekend filter");
 assert.doesNotMatch(app, /data-theme|themeToggle/, "theme switching removed");

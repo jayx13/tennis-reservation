@@ -1,160 +1,113 @@
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f6f5ed">
-    <meta name="description" content="Public tennis and basketball availability across Kanagawa, Yokohama and Kawasaki.">
-    <title>Court//Finder — Find your next game</title>
-    <link rel="stylesheet" href="styles.css">
-    <script>
-      (function(){
-        try {
-          var saved = localStorage.getItem("court-finder-theme");
-          var theme = saved ? JSON.parse(saved) : null;
-          if (!theme) {
-            theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-          }
-          if (theme === "dark") {
-            document.documentElement.setAttribute("data-color-scheme", "dark");
-            document.documentElement.classList.add("dark");
-            var meta = document.querySelector('meta[name="theme-color"]');
-            if (meta) meta.setAttribute("content", "#0c1310");
-          }
-        } catch(e) {}
-      })();
-    </script>
-  </head>
-  <body>
-    <a class="skip-link" href="#main-content">Skip to availability</a>
-    <div class="arena-grid" aria-hidden="true"></div>
+<html lang="en" data-color-scheme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#09110e">
+  <meta name="description" content="Ranked public tennis and basketball openings across Kanagawa, Yokohama and Kawasaki.">
+  <title>Court//Finder — Find a court that fits your week</title>
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    (function () {
+      try {
+        var stored = JSON.parse(localStorage.getItem("court-finder-theme"));
+        var theme = stored || "dark";
+        document.documentElement.setAttribute("data-color-scheme", theme);
+        document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#09110e" : "#f4f3ed";
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to availability</a>
+  <div class="arena-grid" aria-hidden="true"></div>
+  <header class="site-header">
+    <a class="brand-mark" href="#main-content" aria-label="Court Finder home"><span>Court</span><i>//</i><span>Finder</span></a>
+    <div class="header-actions">
+      <div class="live-status" aria-live="polite"><span class="live-dot" aria-hidden="true"></span><span id="health">Loading live data</span></div>
+      <button id="themeSwitch" class="theme-switch" type="button" aria-label="Toggle appearance"><span class="theme-switch-icon" aria-hidden="true">☀</span><span class="theme-switch-label">Theme</span></button>
+    </div>
+  </header>
 
-    <header class="site-header">
-      <div class="header-inner">
-        <a class="brand-mark" href="#main-content" aria-label="Court Finder home">
-          <span>Court</span><i>//</i><span>Finder</span>
-        </a>
-        <div class="header-actions">
-          <div class="live-status" aria-live="polite">
-            <span class="live-dot" aria-hidden="true"></span>
-            <span id="health">Loading live data</span>
-          </div>
-          <button id="themeSwitch" class="theme-switch" type="button" aria-label="Toggle appearance">
-            <span class="theme-switch-icon" aria-hidden="true">🌙</span>
-            <span class="theme-switch-label">Theme</span>
-          </button>
+  <main id="main-content" class="shell">
+    <section class="hero" aria-labelledby="pageTitle">
+      <div><p class="eyebrow" id="eyebrow">Kanagawa public sports · refreshed hourly</p><h1 id="pageTitle">Courts that fit<br><em>your week.</em></h1><p class="lede" id="pageDescription">Weekends and weekday evenings rise to the top, so your next playable slot takes seconds to find.</p></div>
+      <div class="metric-grid" aria-label="Availability summary">
+        <article class="metric-card metric-card-primary"><strong id="slotCount">—</strong><span>Open slots</span></article>
+        <article class="metric-card"><strong id="facilityCount">—</strong><span id="facilityMetricLabel">Venues tracked</span></article>
+        <article class="metric-card"><strong>1h</strong><span>Refresh cycle</span></article>
+      </div>
+    </section>
+
+    <section class="command-deck" aria-label="Find a court">
+      <div class="sport-row">
+        <nav class="sport-tabs" aria-label="Choose sport">
+          <button class="sport-tab active" type="button" data-sport="tennis" aria-pressed="true"><span aria-hidden="true">01</span>Tennis</button>
+          <button class="sport-tab" type="button" data-sport="basketball" aria-pressed="false"><span aria-hidden="true">02</span>Basketball</button>
+        </nav>
+        <button id="editSchedule" class="schedule-button" type="button"><span aria-hidden="true">◷</span> Edit my schedule</button>
+      </div>
+      <div class="preference-bar">
+        <div><span class="preference-kicker">Your booking rhythm</span><strong>Weekends · Weekdays after <span id="scheduleTimeLabel">19:00</span></strong></div>
+        <div class="view-switch" role="group" aria-label="Availability view">
+          <button id="viewBest" class="active" type="button" aria-pressed="true">Best for me <span id="bestMatchCount">—</span></button>
+          <button id="viewAll" type="button" aria-pressed="false">All courts <span id="allSlotCount">—</span></button>
         </div>
       </div>
-    </header>
+      <div class="desktop-filters" aria-label="Availability filters">
+        <label><span>Date</span><select id="dateFilter"><option value="">Any date</option></select></label>
+        <label><span>Time</span><select id="timeFilter"><option value="">Any time</option><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option></select></label>
+        <label><span>Region</span><select id="regionFilter"><option value="">Everywhere</option><option value="kanagawa">Kanagawa</option><option value="yokohama">Yokohama</option><option value="kawasaki">Kawasaki</option></select></label>
+        <label><span>Sort</span><select id="sortFilter"><option value="recommended">Recommended</option><option value="soonest">Soonest</option><option value="startTime">Start time</option><option value="distance">Distance</option></select></label>
+        <label class="search-field"><span>Search</span><input id="searchFilter" type="search" placeholder="Venue or court" autocomplete="off"></label>
+        <label class="check-filter weekend-toggle"><input id="weekendFilter" type="checkbox"><span>Weekends only</span></label>
+        <label class="check-filter"><input id="favoritesFilter" type="checkbox"><span>Saved only</span></label>
+        <button id="clearFilters" class="text-button" type="button">Clear filters</button>
+      </div>
+      <div class="mobile-tools">
+        <button id="filterDialogOpen" type="button">Filters <span id="activeFilterCount">0</span></button>
+        <label><span class="sr-only">Sort results</span><select id="mobileSortFilter"><option value="recommended">Recommended</option><option value="soonest">Soonest</option><option value="startTime">Start time</option><option value="distance">Distance</option></select></label>
+      </div>
+      <nav id="dateStrip" class="date-strip" aria-label="Quick date filter"></nav>
+    </section>
 
-    <main id="main-content" class="shell">
-      <section class="hero" aria-labelledby="pageTitle">
-        <div class="hero-copy">
-          <p class="eyebrow" id="eyebrow">Kanagawa public sports · live availability</p>
-          <h1 id="pageTitle">Your next court starts here.</h1>
-          <p class="lede" id="pageDescription">Requestable public tennis courts, refreshed from official reservation services.</p>
-        </div>
+    <section class="results-section" aria-labelledby="resultsTitle">
+      <div class="results-heading"><div><p class="section-index" id="sportIndex">01 / Tennis</p><h2 id="resultsTitle">Best matches</h2></div><p><strong id="resultCount">—</strong> <span id="resultLabel">openings</span></p></div>
+      <div id="activeFilters" class="active-filters" aria-live="polite"></div>
+      <div id="slots" class="slot-feed" aria-live="polite" aria-busy="true"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
+      <div id="emptyState" class="empty-state" hidden><span aria-hidden="true">○</span><h3>No courts match yet</h3><p>Try All courts or loosen a filter.</p><button type="button" data-empty-clear>Show all courts</button></div>
+    </section>
 
-        <div class="metric-grid" aria-label="Availability summary">
-          <article class="metric-card metric-card-primary">
-            <strong id="slotCount">--</strong>
-            <span>Available slots</span>
-          </article>
-          <article class="metric-card">
-            <strong id="facilityCount">--</strong>
-            <span id="facilityMetricLabel">Venues tracked</span>
-          </article>
-          <article class="metric-card">
-            <strong>1h</strong>
-            <span>Refresh cycle</span>
-          </article>
-        </div>
-      </section>
+    <aside class="provider-dock" aria-labelledby="providerTitle">
+      <div><p class="section-index">Official services</p><h2 id="providerTitle">Go straight to Kawasaki</h2><p id="facilitySource">Booking and activity search shortcuts from official providers.</p></div>
+      <div id="kawasakiLinks" class="provider-links"></div>
+    </aside>
+    <footer><span>Last checked <time id="lastChecked">—</time></span><span id="dateWindow"></span></footer>
+  </main>
 
-      <section class="availability-panel" aria-label="Court availability">
-        <div class="panel-topline">
-          <nav class="sport-tabs" aria-label="Choose sport">
-            <button class="sport-tab active" type="button" data-sport="tennis" aria-pressed="true">
-              <span class="sport-number">01</span> Tennis
-            </button>
-            <button class="sport-tab" type="button" data-sport="basketball" aria-pressed="false">
-              <span class="sport-number">02</span> Basketball
-            </button>
-          </nav>
-          <p class="panel-update">Updated <strong id="lastChecked">--</strong></p>
-        </div>
+  <dialog id="scheduleDialog" class="modal">
+    <form id="scheduleForm" method="dialog">
+      <div class="modal-heading"><div><p class="section-index">Personal ranking</p><h2>When can you play?</h2></div><button class="icon-button" value="cancel" aria-label="Close schedule editor">×</button></div>
+      <p>These choices rank your feed. All courts always stays available.</p>
+      <fieldset><legend>Days</legend><label><input name="saturday" type="checkbox">Saturday</label><label><input name="sunday" type="checkbox">Sunday</label><label><input name="weekdayEvenings" type="checkbox">Weekday evenings</label></fieldset>
+      <label class="field"><span>Weekdays start at</span><input name="weekdayStart" type="time" step="1800" required></label>
+      <div class="modal-actions"><button id="resetSchedule" class="text-button" type="button">Restore defaults</button><button class="primary-button" value="save">Save schedule</button></div>
+    </form>
+  </dialog>
 
-        <div class="region-tabs" role="group" aria-label="Reservation provider">
-          <button type="button" data-region="" aria-pressed="true">All areas</button>
-          <button type="button" data-region="kanagawa" aria-pressed="false">Kanagawa</button>
-          <button type="button" data-region="yokohama" aria-pressed="false">Yokohama</button>
-          <button type="button" data-region="kawasaki" aria-pressed="false">Kawasaki</button>
-        </div>
-        <aside class="kawasaki-shortcuts" aria-label="Kawasaki booking shortcuts">
-          <span>Kawasaki reservations</span>
-          <nav id="kawasakiLinks" aria-label="Book other activities in Kawasaki"></nav>
-        </aside>
-        <div class="toolbar" role="search" aria-label="Filter available slots">
-          <label>
-            <span>Date</span>
-            <select id="dateFilter">
-              <option value="">All dates</option>
-            </select>
-          </label>
-          <label>
-            <span>Time</span>
-            <select id="timeFilter">
-              <option value="">Any time</option>
-              <option value="morning">Morning</option>
-              <option value="afternoon">Afternoon</option>
-              <option value="evening">Evening</option>
-            </select>
-          </label>
-          <label class="search-field">
-            <span>Facility or status</span>
-            <input id="searchFilter" type="search" placeholder="Search venues…" autocomplete="off">
-          </label>
-          <label class="weekend-toggle">
-            <input id="weekendFilter" type="checkbox">
-            <span>Weekends only</span>
-          </label>
-          <label class="weekend-toggle"><input id="favoritesFilter" type="checkbox"><span>Saved venues</span></label>
-          <button id="clearFilters" class="clear-filters" type="button">Clear</button>
-        </div>
-
-        <div id="activeFilters" class="active-filters" aria-label="Active filters"></div>
-        <div class="meta-rail" aria-label="Data summary">
-          <div><span>Source</span><strong id="facilitySource">Kanagawa + Yokohama</strong></div>
-          <div><span>Window</span><strong id="dateWindow">--</strong></div>
-          <div><span>Status</span><strong id="statusMix">--</strong></div>
-        </div>
-      </section>
-
-      <section class="results-section" aria-labelledby="resultsTitle">
-        <div id="dateStrip" class="date-strip" role="group" aria-label="Choose available date"></div>
-        <div class="section-heading">
-          <div>
-            <p class="section-index">Availability / <span id="sportIndex">01</span></p>
-            <h2 id="resultsTitle">Open tennis courts</h2>
-          </div>
-          <span id="resultCount">-- results</span>
-          <button id="expandAll" type="button" class="clear-filters">Expand all</button>
-          <button id="collapseAll" type="button" class="clear-filters">Collapse all</button>
-        </div>
-        <div id="slots" class="slots" aria-live="polite" aria-busy="true"></div>
-        <div id="emptyState" class="empty" hidden>
-          <span class="empty-code">00</span>
-          <strong>No matching open slots.</strong>
-          <span>Adjust the filters or check again after the next refresh.</span>
-        </div>
-      </section>
-    </main>
-
-    <footer class="site-footer">
-      <div><strong>Court//Finder</strong><span>Independent availability dashboard</span></div>
-      <p>Find a time here. Book through the official service. Availability can change.</p>
-    </footer>
-
-    <script src="app.js" type="module"></script>
-  </body>
+  <dialog id="filterDialog" class="modal mobile-filter-modal">
+    <form method="dialog">
+      <div class="modal-heading"><h2>Filters</h2><button id="filterDialogClose" class="icon-button" value="close" aria-label="Close filters">×</button></div>
+      <label class="field"><span>Date</span><select id="mobileDateFilter"><option value="">Any date</option></select></label>
+      <label class="field"><span>Time</span><select id="mobileTimeFilter"><option value="">Any time</option><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option></select></label>
+      <label class="field"><span>Region</span><select id="mobileRegionFilter"><option value="">Everywhere</option><option value="kanagawa">Kanagawa</option><option value="yokohama">Yokohama</option><option value="kawasaki">Kawasaki</option></select></label>
+      <label class="field"><span>Search</span><input id="mobileSearchFilter" type="search" placeholder="Venue or court"></label>
+      <label class="check-filter"><input id="mobileWeekendFilter" type="checkbox"><span>Weekends only</span></label>
+      <label class="check-filter"><input id="mobileFavoritesFilter" type="checkbox"><span>Saved only</span></label>
+      <button id="applyMobileFilters" class="primary-button" value="apply">Apply filters</button>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script type="module" src="app.js"></script>
+</body>
 </html>

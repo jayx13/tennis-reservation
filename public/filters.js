@@ -1,3 +1,57 @@
+export const DEFAULT_SCHEDULE = Object.freeze({
+  saturday: true,
+  sunday: true,
+  weekdayEvenings: true,
+  weekdayStart: "19:00"
+});
+
+export function normalizeSchedule(value) {
+  const schedule = value && typeof value === "object" ? value : {};
+  return {
+    saturday: typeof schedule.saturday === "boolean" ? schedule.saturday : DEFAULT_SCHEDULE.saturday,
+    sunday: typeof schedule.sunday === "boolean" ? schedule.sunday : DEFAULT_SCHEDULE.sunday,
+    weekdayEvenings: typeof schedule.weekdayEvenings === "boolean" ? schedule.weekdayEvenings : DEFAULT_SCHEDULE.weekdayEvenings,
+    weekdayStart: /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(schedule.weekdayStart) ? schedule.weekdayStart : DEFAULT_SCHEDULE.weekdayStart
+  };
+}
+
+export function preferenceTier(slot, scheduleValue = DEFAULT_SCHEDULE) {
+  const schedule = normalizeSchedule(scheduleValue);
+  const [year, month, day] = String(slot?.date || "").split("-").map(Number);
+  const startTime = String(slot?.startTime || "");
+  if (![year, month, day].every(Number.isInteger) || !/^\d{2}:\d{2}$/.test(startTime)) return 3;
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  const isPreferredWeekend = (weekday === 6 && schedule.saturday) || (weekday === 0 && schedule.sunday);
+  if (isPreferredWeekend) return startTime >= schedule.weekdayStart ? 0 : 1;
+  if (weekday >= 1 && weekday <= 5 && schedule.weekdayEvenings && startTime >= schedule.weekdayStart) return 2;
+  return 3;
+}
+
+function chronologyKey(slot) {
+  return [slot.date, slot.startTime, slot.facilityName, slot.provider, slot.facilityCode]
+    .map(value => String(value ?? ""))
+    .join("|");
+}
+
+export function rankSlots(slots, scheduleValue = DEFAULT_SCHEDULE, mode = "best", sortMode = "recommended") {
+  const schedule = normalizeSchedule(scheduleValue);
+  const visible = [...slots].filter(slot => mode === "all" || preferenceTier(slot, schedule) < 3);
+  return visible.sort((a, b) => {
+    if (sortMode === "distance") {
+      const distance = (Number.isFinite(a.distanceFromYokohamaStationKm) ? a.distanceFromYokohamaStationKm : Infinity) -
+        (Number.isFinite(b.distanceFromYokohamaStationKm) ? b.distanceFromYokohamaStationKm : Infinity);
+      if (distance) return distance;
+    } else if (sortMode === "startTime") {
+      const time = String(a.startTime || "").localeCompare(String(b.startTime || ""));
+      if (time) return time;
+    } else if (sortMode === "recommended") {
+      const tier = preferenceTier(a, schedule) - preferenceTier(b, schedule);
+      if (tier) return tier;
+    }
+    return chronologyKey(a).localeCompare(chronologyKey(b), "en", { numeric: true, sensitivity: "base" });
+  });
+}
+
 export function isWeekendDate(value) {
   const [year, month, day] = String(value).split("-").map(Number);
   if (![year, month, day].every(Number.isInteger)) return false;
