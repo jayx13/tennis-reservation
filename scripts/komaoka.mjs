@@ -140,20 +140,54 @@ function calendarDates(dayNumbers, year, month) {
   });
 }
 
+function parseStyleDeclarations(style) {
+  const declarations = new Map();
+  for (const segment of style.split(";")) {
+    const declaration = segment.trim();
+    if (!declaration) continue;
+    const match = /^([a-z-]+)\s*:\s*(.+)$/i.exec(declaration);
+    if (!match) structureError();
+    const property = match[1].toLowerCase();
+    const value = match[2].trim().toLowerCase().replace(/\s+/g, " ");
+    if (declarations.has(property)) structureError();
+    declarations.set(property, value);
+  }
+  return declarations;
+}
+
+function hasKnownCellStyle(style) {
+  if (style === undefined) return true;
+  const declarations = parseStyleDeclarations(style);
+  if ([...declarations.keys()].some(property => !["background-color", "text-align", "border"].includes(property))) return false;
+
+  const background = declarations.get("background-color");
+  const textAlign = declarations.get("text-align");
+  const border = declarations.get("border");
+  if (!background) return declarations.size === 1 && border === "1px solid #cccccc";
+
+  const expectedBorder = new Map([
+    ["#ffdddd", "1px solid red"],
+    ["#dddddd", "1px solid gray"],
+    ["#ddffdd", "1px solid green"]
+  ]).get(background);
+  return Boolean(expectedBorder) &&
+    (textAlign === undefined || textAlign === "center") &&
+    (border === undefined || border === expectedBorder);
+}
+
 function isAvailable(cell) {
   if (/[<>]/.test(cell.content)) structureError();
 
   const attributeNames = Object.keys(cell.attributes);
   const hasOnlyKnownAttributes = attributeNames.every(name => ["rowspan", "class", "style"].includes(name));
   const hasKnownClass = cell.attributes.class === undefined || cell.attributes.class === "list";
-  const hasKnownStyle = cell.attributes.style === undefined ||
-    /^(?:border:1px solid #cccccc;|background-color:#(?:ffdddd|dddddd|ddffdd))$/i.test(cell.attributes.style);
+  const hasKnownStyle = hasKnownCellStyle(cell.attributes.style);
   if (!hasOnlyKnownAttributes || !hasKnownClass || !hasKnownStyle) structureError();
 
   const rawContent = cell.content.trim();
   const isKnownBlank = ["", "&nbsp;", "&#160;", "&#xa0;", "\u00a0"]
     .some(blank => rawContent.toLowerCase() === blank);
-  const hasUnavailableStyle = /^background-color:/i.test(cell.attributes.style ?? "");
+  const hasUnavailableStyle = parseStyleDeclarations(cell.attributes.style ?? "").has("background-color");
   return isKnownBlank && !hasUnavailableStyle;
 }
 

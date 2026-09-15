@@ -56,6 +56,12 @@ const styledBlankState = fixture.replace("<td>&nbsp;</td>", '<td class="list" st
 assert(parseKomaokaWeek(styledBlankState, context)
   .some(slot => slot.date === "2026-08-09" && slot.startTime === "09:00"));
 
+const currentYokohamaStyles = fixture
+  .replaceAll('style="background-color:#FFDDDD"', 'class=list style="background-color:#FFDDDD; text-align:center; border:1px solid red;"')
+  .replaceAll('style="background-color:#DDDDDD"', 'class=list style="background-color:#DDDDDD; text-align:center; border:1px solid gray;"')
+  .replaceAll('style="background-color:#DDFFDD"', 'class=list style="background-color:#DDFFDD; text-align:center; border:1px solid green;"');
+assert.deepEqual(parseKomaokaWeek(currentYokohamaStyles, context), parsed);
+
 assert.throws(
   () => parseKomaokaWeek(fixture, { ...expectedContext, expectedWeekStart: "2026-08-16" }),
   /Komaoka calendar structure/i
