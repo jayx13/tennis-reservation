@@ -4,6 +4,8 @@ import {
   bookingLink,
   dateSlotCounts,
   isWeekendDate,
+  isLotterySlot,
+  lotteryDates,
   kawasakiBookingLinks,
   legacyCourtName,
   matchesRegion,
@@ -17,6 +19,7 @@ import {
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const els = {
+  lotteryNotice: $("#lotteryNotice"),
   health: $("#health"), slotCount: $("#slotCount"), facilityCount: $("#facilityCount"),
   facilityMetricLabel: $("#facilityMetricLabel"), lastChecked: $("#lastChecked"), dateWindow: $("#dateWindow"),
   dateFilter: $("#dateFilter"), timeFilter: $("#timeFilter"), regionFilter: $("#regionFilter"),
@@ -196,10 +199,11 @@ function renderSlots(slots) {
 }
 function renderSummary() {
   const sportSlots = data.slots.filter((slot) => (slot.sport || "tennis") === activeSport);
+  const bookableSlots = sportSlots.filter(slot => !isLotterySlot(slot));
   const best = rankSlots(sportSlots, schedule, "best", "recommended");
   const venues = new Set(sportSlots.map(venueKey));
   const coverage = data.coverage?.[activeSport] ?? data.summary?.coverage?.[activeSport];
-  els.slotCount.textContent = sportSlots.length.toLocaleString();
+  els.slotCount.textContent = bookableSlots.length.toLocaleString();
   els.facilityCount.textContent = String(coverage ?? venues.size);
   els.facilityMetricLabel.textContent = coverage ? "Venues tracked" : "Venues with openings";
   els.bestMatchCount.textContent = String(best.length);
@@ -210,7 +214,11 @@ function renderSummary() {
   els.sportIndex.textContent = `${meta.number} / ${meta.title}`;
 }
 function render() {
-  const ranked = rankSlots(filteredSlots(), schedule, viewMode, sortMode);
+  const matchingSlots = filteredSlots();
+  const dates = lotteryDates(matchingSlots);
+  els.lotteryNotice.hidden = dates.length === 0;
+  els.lotteryNotice.textContent = dates.length ? `Lottery available on these dates: ${dates.map(date => formatDate(date)).join("; ")}. Entry does not guarantee a booking.` : "";
+  const ranked = rankSlots(matchingSlots, schedule, viewMode, sortMode);
   const displaySlots = toDisplaySlots(ranked);
   renderSummary(); renderDateStrip(); renderActiveFilters(); renderSlots(displaySlots);
   els.resultCount.textContent = String(displaySlots.length);

@@ -22,6 +22,19 @@ assert.deepEqual(dashboardFilters.normalizeSchedule({
 });
 assert.notEqual(dashboardFilters.normalizeSchedule(undefined), dashboardFilters.normalizeSchedule(undefined));
 
+const lotterySlots = [
+  { id: "lottery-1", statusType: "L01", date: "2026-09-19", startTime: "19:00" },
+  { id: "lottery-2", statusType: "L02", date: "2026-09-19", startTime: "20:00" },
+  { id: "lottery-3", statusType: "L01", date: "2026-09-20", startTime: "09:00" },
+  { id: "bookable", statusType: "A01", date: "2026-09-19", startTime: "19:00" }
+];
+for (const sort of ["recommended", "soonest", "startTime", "distance"]) {
+  assert.deepEqual(dashboardFilters.rankSlots(lotterySlots, undefined, "best", sort).map(slot => slot.id), ["bookable"], "lotteries never enter Best for me");
+}
+assert.equal(dashboardFilters.rankSlots(lotterySlots, undefined, "all").length, 4, "All courts retains lottery details");
+assert.deepEqual(dashboardFilters.lotteryDates(lotterySlots), ["2026-09-19", "2026-09-20"], "lottery dates deduplicate and sort");
+assert.deepEqual(dashboardFilters.lotteryDates([lotterySlots[3]]), [], "bookable slots do not produce lottery dates");
+
 const preferenceSchedule = dashboardFilters.normalizeSchedule(undefined);
 const preferenceSlots = [
   { id: "weekend-evening", date: "2026-09-19", startTime: "19:00", facilityName: "C", provider: "yokohama", facilityCode: "3", distanceFromYokohamaStationKm: 7 },

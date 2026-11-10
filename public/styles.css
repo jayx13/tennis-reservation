@@ -215,3 +215,5 @@ footer { display: flex; justify-content: space-between; gap: 20px; padding: 24px
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.lottery-notice { padding: 16px; border: 1px solid var(--forest); border-radius: 12px; line-height: 1.6; overflow-wrap: anywhere; }

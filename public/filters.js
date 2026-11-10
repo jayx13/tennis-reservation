@@ -33,9 +33,17 @@ function chronologyKey(slot) {
     .join("|");
 }
 
+export function isLotterySlot(slot) {
+  return slot.statusType === "L01" || slot.statusType === "L02";
+}
+
+export function lotteryDates(slots) {
+  return [...new Set(slots.filter(isLotterySlot).map(slot => slot.date))].sort();
+}
+
 export function rankSlots(slots, scheduleValue = DEFAULT_SCHEDULE, mode = "best", sortMode = "recommended") {
   const schedule = normalizeSchedule(scheduleValue);
-  const visible = [...slots].filter(slot => mode === "all" || preferenceTier(slot, schedule) < 3);
+  const visible = [...slots].filter(slot => mode === "all" || (!isLotterySlot(slot) && preferenceTier(slot, schedule) < 3));
   return visible.sort((a, b) => {
     if (sortMode === "distance") {
       const distance = (Number.isFinite(a.distanceFromYokohamaStationKm) ? a.distanceFromYokohamaStationKm : Infinity) -
